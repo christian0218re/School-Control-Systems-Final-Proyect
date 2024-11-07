@@ -1,18 +1,45 @@
 import tkinter as tk
-import Authentication as autenticacion 
+import Authentication as autenticacion
 from tkinter import messagebox
+from Carrera import createCareerWindow
 
-def abrir_menu_principal(user_id, rol):
-    menu = tk.Tk()
+def abrir_menu_principal(user_id, rol, nombre):
+    # Cambiar de Tk() a Toplevel() para abrir una nueva ventana sin duplicar la ventana principal
+    menu = tk.Toplevel()
     menu.title("-Menú Principal-")
-    menu.geometry("400x300")
+    menu.geometry("600x400")
 
-    tk.Label(menu, text=f"Bienvenido, {rol}", font=("Helvetica", 16)).pack(pady=10)
+    barra_menus = tk.Menu(menu)
 
-    menu.mainloop()
+    menu_login = tk.Menu(barra_menus, tearoff=0)
+    menu_login.add_command(label="Cerrar Sesión", command=menu.destroy)
 
+    menu_admin = tk.Menu(barra_menus, tearoff=0)
+    menu_admin.add_command(label="Carrera", command=createCareerWindow)
+
+    menu_alumnos = tk.Menu(barra_menus, tearoff=0)
+    menu_alumnos.add_command(label="Administrar Alumnos")
+
+    menu_maestros = tk.Menu(barra_menus, tearoff=0)
+    menu_maestros.add_command(label="Administrar Maestros")
+
+    # Agregar cada menú a la barra de menús
+    barra_menus.add_cascade(label="Login", menu=menu_login)
+    if rol == "administrador":
+        barra_menus.add_cascade(label="Admin", menu=menu_admin)
+    
+    if rol == "maestro":
+        barra_menus.add_cascade(label="Algo", menu=menu_maestros)
+
+    if rol == "alumno":
+        barra_menus.add_cascade(label="Algo", menu=menu_alumnos)
+
+    menu.config(menu=barra_menus)
+
+    tk.Label(menu, text=f"Bienvenido, {nombre}", font=("Helvetica", 16)).pack(pady=10)
+
+# Función de login
 def login(event=None): 
-    # Obtener el correo y la contraseña ingresados en los campos correspondientes
     correo = username_entry.get()
     contraseña = password_entry.get()
 
@@ -21,22 +48,19 @@ def login(event=None):
 
     # Verificar si la autenticación fue exitosa
     if usuario:
-        # Si el usuario fue encontrado, extraer ID y rol
         user_id = usuario[0]  
-        rol = usuario[1]      
+        nombre = usuario[1]
+        rol = usuario[2]    
 
-        # Mostrar un mensaje de bienvenida al usuario
         messagebox.showinfo("Login Exitoso", f"Bienvenido, {correo}")
         
-        # Cerrar la ventana de inicio de sesión después de un breve retardo
-        root.after(100, root.destroy)  
+        abrir_menu_principal(user_id, rol, nombre)  # Abrir el menú principal
         
-        # Llamar a la función que abre el menú principal con el ID y rol del usuario
-        abrir_menu_principal(user_id, rol)
+        # Ocultar la ventana de login
+        root.withdraw()  # Oculta la ventana de login, no la destruye
+        
     else:
-        # Si la autenticación falla, mostrar un mensaje de error
         messagebox.showerror("Error", "Correo o contraseña incorrectos")
-
 
 # Ventana de login
 root = tk.Tk()
@@ -57,3 +81,4 @@ login_button.pack(pady=20)
 root.bind('<Return>', login)  # Vincula la tecla Enter con la función login
 
 root.mainloop()
+
