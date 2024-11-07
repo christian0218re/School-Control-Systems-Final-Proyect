@@ -1,7 +1,12 @@
 import sqlite3
 
 # Conexión a la base de datos
-conexion = sqlite3.connect('DataBase.db')
+
+def conectar():
+    conexion = sqlite3.connect('DataBase.db')
+    return conexion
+
+conexion = conectar()
 cursor = conexion.cursor()
 
 # Script de creación de tablas
@@ -56,19 +61,18 @@ CREATE TABLE IF NOT EXISTS Materias_Carreras (
     FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera)
 );
 """
-
 # Ejecutar el script SQL
 cursor.executescript(script_sql)
 
 # Verificar y agregar un usuario administrador
-cursor.execute("SELECT * FROM Usuarios WHERE correo = 'admin@cordi.com'")
+cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", ('cordi@cordi.com',))
 admin_existe = cursor.fetchone()
 
 if not admin_existe:
     cursor.execute('''
         INSERT INTO Usuarios (nombre, correo, contraseña, tipo_usuario) 
         VALUES (?, ?, ?, ?)
-    ''', ('admin', 'admin@cordi.com', 'admin', 'administrador'))
+    ''', ('Cordi', 'cordi@cordi.com', 'admin', 'administrador'))
     print("Usuario admin creado con éxito.")
 else:
     print("El usuario admin ya existe.")
