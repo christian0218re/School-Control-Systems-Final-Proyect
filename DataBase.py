@@ -65,14 +65,14 @@ CREATE TABLE IF NOT EXISTS Materias_Carreras (
 cursor.executescript(script_sql)
 
 # Verificar y agregar un usuario administrador
-cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", ('admin',))
+cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", ('cordi@cordi.com',))
 admin_existe = cursor.fetchone()
 
 if not admin_existe:
     cursor.execute('''
         INSERT INTO Usuarios (nombre, correo, contraseña, tipo_usuario) 
         VALUES (?, ?, ?, ?)
-    ''', ('admin', 'admin', 'admin', 'administrador'))
+    ''', ('Cordi', 'cordi@cordi.com', 'admin', 'administrador'))
     print("Usuario admin creado con éxito.")
 else:
     print("El usuario admin ya existe.")
