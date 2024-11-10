@@ -1,7 +1,6 @@
 import sqlite3
 
 # Conexión a la base de datos
-
 def conectar():
     conexion = sqlite3.connect('DataBase.db')
     return conexion
@@ -29,11 +28,13 @@ CREATE TABLE IF NOT EXISTS Carreras (
 -- Creación de la tabla Alumnos
 CREATE TABLE IF NOT EXISTS Alumnos (
     id_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_usuario INTEGER NOT NULL,
-    id_carrera INTEGER,
-    fecha_ingreso DATE,
-    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario),
-    FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera)
+    nombre TEXT,
+    fecha_nacimiento DATE,
+    A_paterno TEXT,
+    A_materno TEXT,
+    carrera TEXT,
+    Estado TEXT,
+    correo TEXT
 );
 
 -- Creación de la tabla Maestros
@@ -88,8 +89,6 @@ for carrera in carreras:
     else:
         print(f"La carrera '{carrera}' ya existe.")
 
-
-
 # Verificar y agregar materias predeterminadas
 materias = [
     ('Matemáticas Discretas', 'MAT101'),
@@ -104,10 +103,6 @@ for nombre_materia, codigo_materia in materias:
         print(f"Materia '{nombre_materia}' creada con éxito.")
     else:
         print(f"La materia '{nombre_materia}' ya existe.")
-
-
-
-
 
 # Confirmar los cambios y cerrar la conexión
 conexion.commit()

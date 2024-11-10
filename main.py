@@ -2,6 +2,7 @@ import tkinter as tk
 import Authentication as autenticacion
 from tkinter import messagebox
 from Carrera import createCareerWindow
+from Estudiantes import createStudentWindow
 
 def abrir_menu_principal(user_id, rol, nombre):
     # Cambiar de Tk() a Toplevel() para abrir una nueva ventana sin duplicar la ventana principal
@@ -16,6 +17,7 @@ def abrir_menu_principal(user_id, rol, nombre):
 
     menu_admin = tk.Menu(barra_menus, tearoff=0)
     menu_admin.add_command(label="Carrera", command=createCareerWindow)
+    menu_admin.add_command(label="Estudiantes", command=createStudentWindow)
 
     menu_alumnos = tk.Menu(barra_menus, tearoff=0)
     menu_alumnos.add_command(label="Administrar Alumnos")
