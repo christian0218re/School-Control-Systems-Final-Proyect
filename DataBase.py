@@ -10,7 +10,6 @@ cursor = conexion.cursor()
 
 # Script de creación de tablas
 script_sql = """
-
 -- Creación de la tabla Usuarios
 CREATE TABLE IF NOT EXISTS Usuarios (
     id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +53,9 @@ CREATE TABLE IF NOT EXISTS Maestros (
 CREATE TABLE IF NOT EXISTS Materias (
     id_materia INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre_materia TEXT NOT NULL,
-    codigo_materia TEXT UNIQUE NOT NULL
+    codigo_materia TEXT UNIQUE NOT NULL,
+    creditos INT,
+    semestre TEXT
 );
 
 -- Creación de la tabla intermedia Materias_Carreras
@@ -96,15 +97,16 @@ for carrera in carreras:
 
 # Verificar y agregar materias predeterminadas
 materias = [
-    ('Matemáticas Discretas', 'MAT101'),
-    ('Derecho Penal', 'DER201'),
-    ('Anatomía', 'MED301')
+    ('Matemáticas Discretas', 'MAT101', 8, 'septimo'),
+    ('Derecho Penal', 'DER201', 5, 'noveno'),
+    ('Anatomía', 'MED301', 4, 'tercero')
 ]
-for nombre_materia, codigo_materia in materias:
+for nombre_materia, codigo_materia, creditos, semestre in materias:
     cursor.execute("SELECT * FROM Materias WHERE codigo_materia = ?", (codigo_materia,))
     materia_existe = cursor.fetchone()
     if not materia_existe:
-        cursor.execute("INSERT INTO Materias (nombre_materia, codigo_materia) VALUES (?, ?)", (nombre_materia, codigo_materia))
+        cursor.execute("INSERT INTO Materias (nombre_materia, codigo_materia, creditos, semestre) VALUES (?, ?, ?, ?)",
+                       (nombre_materia, codigo_materia, creditos, semestre))
         print(f"Materia '{nombre_materia}' creada con éxito.")
     else:
         print(f"La materia '{nombre_materia}' ya existe.")
