@@ -10,11 +10,15 @@ cursor = conexion.cursor()
 
 # Script de creación de tablas
 script_sql = """
+
 -- Creación de la tabla Usuarios
 CREATE TABLE IF NOT EXISTS Usuarios (
     id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
+    a_paterno TEXT NOT NULL,
+    a_materno TEXT NOT NULL,
     correo TEXT UNIQUE NOT NULL,
+    nombre_usuario TEXT NOT NULL,
     contraseña TEXT NOT NULL,
     tipo_usuario TEXT CHECK(tipo_usuario IN ('administrador', 'maestro', 'alumno')) NOT NULL
 );
@@ -71,12 +75,13 @@ admin_existe = cursor.fetchone()
 
 if not admin_existe:
     cursor.execute('''
-        INSERT INTO Usuarios (nombre, correo, contraseña, tipo_usuario) 
-        VALUES (?, ?, ?, ?)
-    ''', ('admin', 'admin', 'admin', 'administrador'))
+        INSERT INTO Usuarios (nombre,a_paterno, a_materno, correo, contraseña,nombre_usuario, tipo_usuario)
+        VALUES (?, ?, ?, ?, ?, ?, ?)'''
+    , ('admin', 'admin' , 'admin', 'admin','admin','admin','administrador'))
     print("Usuario admin creado con éxito.")
 else:
     print("El usuario admin ya existe.")
+
 
 # Verificar y agregar carreras predeterminadas
 carreras = ['Ingeniería en Computación', 'Derecho', 'Medicina']

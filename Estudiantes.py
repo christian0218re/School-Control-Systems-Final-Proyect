@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 from tkcalendar import DateEntry
-from DataBase import conectar  # Importar la función conectar para manejar la conexión a la base de datos
+from DataBase import conectar
 
 studentWindow = None
 
