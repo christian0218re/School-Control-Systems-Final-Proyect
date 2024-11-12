@@ -4,6 +4,18 @@ from tkinter import ttk
 from DataBase import conectar  # Función de conexión a la base de datos
 
 def createHorarioWindow():
+
+    def es_maximo_horario(turno, hora_inicio, hora_fin):
+        return int(hora_inicio.split(":")[0]) <= 12 or int(hora_fin.split(":")[0]) <= 12 and (int(hora_inicio.split(":")[0]) - int(hora_fin.split(":")[0])) <= 4
+
+    def es_hora_valida(turno, hora_inicio):
+        """Valida si la hora de inicio es correcta según el turno."""
+        inicio_hora = int(hora_inicio.split(":")[0])
+        if turno == "matutino" and 7 <= inicio_hora <= 12:
+            return True
+        elif turno == "vespertino" and 13 <= inicio_hora <= 20:
+            return True
+        return False
     # Agregar un nuevo horario
     def agregar_horario():
         conn = conectar()
@@ -14,19 +26,31 @@ def createHorarioWindow():
         hora_inicio = horaInicio_combobox.get()
         hora_fin = horaFin_combobox.get()
 
-        # Validación de datos necesarios
+        # Validación de campos vacíos
         if not turno or not hora_inicio or not hora_fin:
             messagebox.showinfo("Error", "Por favor rellene todos los campos de horario")
             return
 
+        # Validación de hora de inicio para el turno
+        if not es_hora_valida(turno, hora_inicio):
+            messagebox.showinfo("Error", f"La hora de inicio {hora_inicio} no es válida para el turno {turno}")
+            return
+
+        # Validación de que la hora de inicio no sea mayor o igual a la hora de fin
+        if int(hora_inicio.split(":")[0]) >= int(hora_fin.split(":")[0]):
+            messagebox.showinfo("Error", "La hora de inicio no puede ser mayor o igual que la hora de fin")
+            return
+        # Validación de que hora de inicio y hora de fin sean maximos 4 horas
+        if not es_maximo_horario(turno, hora_inicio, hora_fin):
+            messagebox.showinfo("Error", f"La hora de inicio {hora_inicio} no puede ser mayor o igual a la hora de fin {hora_fin}, es decir, maximos 4 horas")
+            return
+
         try:
-            # Insertar horario en la base de datos
             cursor.execute("INSERT INTO Horarios (id_horario, turno, hora_inicio, hora_fin) VALUES (?, ?, ?, ?)",
                            (id_horario, turno, hora_inicio, hora_fin))
             conn.commit()
             messagebox.showinfo("Éxito", "Horario agregado correctamente")
             limpiar_campos()
-
         except Exception as e:
             messagebox.showinfo("Error", str(e))
         finally:
@@ -34,6 +58,7 @@ def createHorarioWindow():
 
     # Limpiar los campos de entrada en la ventana
     def limpiar_campos():
+        idEntry.config(state="normal")
         searchEntry.delete(0,tk.END)
         idEntry.delete(0, tk.END)  
         turno_combobox.set("")     
@@ -55,7 +80,8 @@ def createHorarioWindow():
 
         if horario:
             idEntry.delete(0, tk.END)  
-            idEntry.insert(tk.END, horario_id)  
+            idEntry.insert(tk.END, horario_id)
+            idEntry.config(state="disabled")
 
             turno_combobox.set(horario[0]) 
 
@@ -68,7 +94,6 @@ def createHorarioWindow():
 
         conn.close()
 
-    # Función para editar los detalles de un horario existente
     def editar_horario():
         conn = conectar()
         cursor = conn.cursor()
@@ -78,9 +103,28 @@ def createHorarioWindow():
         hora_inicio = horaInicio_combobox.get()
         hora_fin = horaFin_combobox.get()
 
+        # Validación de campos vacíos
         if not turno or not hora_inicio or not hora_fin:
             messagebox.showinfo("Error", "Por favor rellene todos los campos de horario")
             return
+
+        # Validación de hora de inicio para el turno
+        if not es_hora_valida(turno, hora_inicio):
+            messagebox.showinfo("Error", f"La hora de inicio {hora_inicio} no es válida para el turno {turno}")
+            return
+
+        # Validación de que la hora de inicio no sea mayor o igual a la hora de fin
+        if int(hora_inicio.split(":")[0]) >= int(hora_fin.split(":")[0]):
+            messagebox.showinfo("Error", "La hora de inicio no puede ser mayor o igual que la hora de fin")
+            return
+
+        hora_inicio_horas = int(hora_inicio.split(":")[0])
+        hora_fin_horas = int(hora_fin.split(":")[0])
+        # Validación de que hora de inicio y hora de fin sean maximos 4 horas
+        if (hora_fin_horas - hora_inicio_horas) > 4:
+            messagebox.showinfo("Error", f"La diferencia entre la hora de inicio ({hora_inicio}) y la hora de fin ({hora_fin}) no puede ser mayor a 4 horas.")
+            return
+
 
         try:
             cursor.execute("UPDATE Horarios SET turno = ?, hora_inicio = ?, hora_fin = ? WHERE id_horario = ?",
@@ -88,7 +132,6 @@ def createHorarioWindow():
             conn.commit()
             cancelar()
             messagebox.showinfo("Éxito", "Horario actualizado correctamente")
-
         except Exception as e:
             messagebox.showinfo("Error", str(e))
         finally:
