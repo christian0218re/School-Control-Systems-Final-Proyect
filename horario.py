@@ -238,13 +238,3 @@ def createHorarioWindow():
     tk.Button(button_subframe, text="Cancelar", font=("Arial", 12), command=cancelar).pack(side="left", padx=5)
     tk.Button(button_subframe, text="Editar", font=("Arial", 12), command=editar_horario).pack(side="left", padx=5)
     tk.Button(button_subframe, text="Baja", font=("Arial", 12), command=eliminar_horario).pack(side="left", padx=5)
-
-
-# Llamada para abrir la ventana de administración de carreras desde la ventana principal
-root = tk.Tk()
-root.geometry("250x100")  # Ajuste para que la ventana principal sea más compacta
-
-# Botón en la ventana principal para abrir la ventana de carreras
-tk.Button(root, text="Abrir Ventana de Carreras", font=("Arial", 10), command=createHorarioWindow).pack(padx=20, pady=20)
-
-root.mainloop()
