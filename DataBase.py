@@ -66,6 +66,31 @@ CREATE TABLE IF NOT EXISTS Materias_Carreras (
     FOREIGN KEY (id_materia) REFERENCES Materias(id_materia),
     FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera)
 );
+CREATE TABLE IF NOT EXISTS Horarios (
+    id_horario INTEGER PRIMARY KEY AUTOINCREMENT,
+    turno TEXT CHECK(turno IN ('matutino', 'vespertino')) NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL
+);
+-- Creación de la tabla Grupos 
+CREATE TABLE IF NOT EXISTS Grupos (
+    id_grupo INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_materia INTEGER NOT NULL,
+    id_maestro INTEGER NOT NULL,
+    id_horario INTEGER NOT NULL,  -- Nueva referencia a la tabla Horarios
+    periodo TEXT NOT NULL,
+    FOREIGN KEY (id_materia) REFERENCES Materias(id_materia),
+    FOREIGN KEY (id_maestro) REFERENCES Maestros(id_maestro),
+    FOREIGN KEY (id_horario) REFERENCES Horarios(id_horario)
+);
+
+-- Creación de la tabla Salones
+CREATE TABLE IF NOT EXISTS Salones (
+    id_salon INTEGER PRIMARY KEY AUTOINCREMENT,
+    numero_salon TEXT UNIQUE NOT NULL,
+    capacidad INTEGER NOT NULL,
+    ubicacion TEXT
+);
 """
 # Ejecutar el script SQL
 cursor.executescript(script_sql)
