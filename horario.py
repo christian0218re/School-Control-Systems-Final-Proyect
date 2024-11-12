@@ -5,9 +5,6 @@ from DataBase import conectar  # Función de conexión a la base de datos
 
 def createHorarioWindow():
 
-    def es_maximo_horario(turno, hora_inicio, hora_fin):
-        return int(hora_inicio.split(":")[0]) <= 12 or int(hora_fin.split(":")[0]) <= 12 and (int(hora_inicio.split(":")[0]) - int(hora_fin.split(":")[0])) <= 4
-
     def es_hora_valida(turno, hora_inicio):
         """Valida si la hora de inicio es correcta según el turno."""
         inicio_hora = int(hora_inicio.split(":")[0])
@@ -40,9 +37,11 @@ def createHorarioWindow():
         if int(hora_inicio.split(":")[0]) >= int(hora_fin.split(":")[0]):
             messagebox.showinfo("Error", "La hora de inicio no puede ser mayor o igual que la hora de fin")
             return
+        hora_inicio_horas = int(hora_inicio.split(":")[0])
+        hora_fin_horas = int(hora_fin.split(":")[0])
         # Validación de que hora de inicio y hora de fin sean maximos 4 horas
-        if not es_maximo_horario(turno, hora_inicio, hora_fin):
-            messagebox.showinfo("Error", f"La hora de inicio {hora_inicio} no puede ser mayor o igual a la hora de fin {hora_fin}, es decir, maximos 4 horas")
+        if (hora_fin_horas - hora_inicio_horas) > 4:
+            messagebox.showinfo("Error", f"La diferencia entre la hora de inicio ({hora_inicio}) y la hora de fin ({hora_fin}) no puede ser mayor a 4 horas.")
             return
 
         try:
