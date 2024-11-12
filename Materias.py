@@ -18,6 +18,19 @@ def createMateriaWindow():
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
+        # Validación de unicidad para nombre y código de materia
+        cursor.execute("SELECT COUNT(*) FROM Materias WHERE nombre_materia = ?", (nombre_materia,))
+        if cursor.fetchone()[0] > 0:
+            messagebox.showinfo("Error", "El nombre de la materia ya existe. Ingrese un nombre único.")
+            conn.close()
+            return
+
+        cursor.execute("SELECT COUNT(*) FROM Materias WHERE codigo_materia = ?", (codigo_materia,))
+        if cursor.fetchone()[0] > 0:
+            messagebox.showinfo("Error", "El código de la materia ya existe. Ingrese un código único.")
+            conn.close()
+            return
+
         try:
             cursor.execute("INSERT INTO Materias (id_materia, nombre_materia, codigo_materia, creditos, semestre)"
                            " VALUES (?, ?, ?, ?, ?)", (id_materia, nombre_materia, codigo_materia, creditos, semestre))
@@ -73,6 +86,17 @@ def createMateriaWindow():
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
+        cursor.execute("SELECT COUNT(*) FROM Materias WHERE nombre_materia = ?", (nombre_materia,))
+        if cursor.fetchone()[0] > 0:
+            messagebox.showinfo("Error", "El nombre de la materia ya existe. Ingrese un nombre único.")
+            conn.close()
+            return
+
+        cursor.execute("SELECT COUNT(*) FROM Materias WHERE codigo_materia = ?", (codigo_materia,))
+        if cursor.fetchone()[0] > 0:
+            messagebox.showinfo("Error", "El código de la materia ya existe. Ingrese un código único.")
+            conn.close()
+            return
         try:
             cursor.execute(
                 "UPDATE Materias SET nombre_materia = ?, codigo_materia = ?, creditos = ?, semestre = ? WHERE id_materia = ?",

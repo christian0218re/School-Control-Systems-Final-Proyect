@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 from DataBase import conectar
-
+import re
 
 def createUserWindow():
     def agregar_usuario():
@@ -17,12 +17,33 @@ def createUserWindow():
         contrasena = passwordEntry.get()
         tipo_usuario = profileEntry.get()
 
+        # Validación de campos vacíos
         if not (
                 id_usuario and nombre and a_paterno and a_materno and correo and nombre_usuario and contrasena and tipo_usuario):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
+        # Validación de formato de correo electrónico
+        email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+        if not re.match(email_regex, correo):
+            messagebox.showinfo("Error", "El correo electrónico no tiene un formato válido")
+            return
+
+        # Validación de nombre de usuario único
+        cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nombre_usuario = ?", (nombre_usuario,))
+        if cursor.fetchone()[0] > 0:
+            messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
+            return
+
+        # Validación de la contraseña
+        password_regex = r'^(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}:"<>?]).{6,}$'
+        if not re.match(password_regex, contrasena):
+            messagebox.showinfo("Error",
+                                "La contraseña debe tener al menos 6 caracteres, una letra mayúscula y un carácter especial")
+            return
+
         try:
+            # Insertar usuario si las validaciones son correctas
             cursor.execute(
                 "INSERT INTO Usuarios (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -87,6 +108,25 @@ def createUserWindow():
                 id_usuario and nombre and a_paterno and a_materno and correo and nombre_usuario and contrasena and tipo_usuario):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
+
+            # Validación de formato de correo electrónico
+            email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+            if not re.match(email_regex, correo):
+                messagebox.showinfo("Error", "El correo electrónico no tiene un formato válido")
+                return
+
+            # Validación de nombre de usuario único
+            cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nombre_usuario = ?", (nombre_usuario,))
+            if cursor.fetchone()[0] > 0:
+                messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
+                return
+
+            # Validación de la contraseña
+            password_regex = r'^(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}:"<>?]).{6,}$'
+            if not re.match(password_regex, contrasena):
+                messagebox.showinfo("Error",
+                                    "La contraseña debe tener al menos 6 caracteres, una letra mayúscula y un carácter especial")
+                return
 
         try:
             cursor.execute(
@@ -198,7 +238,7 @@ def createUserWindow():
     passwordEntry.grid(row=4, column=4)
 
     tk.Label(userWindow, text='Tipo de usuario').grid(row=5, column=3)
-    profileEntry = ttk.Combobox(userWindow, values=["administrador", "maestro", "estudiante"])
+    profileEntry = ttk.Combobox(userWindow, values=["administrador", "maestro", "alumno"])
     profileEntry.grid(row=5, column=4)
 
 

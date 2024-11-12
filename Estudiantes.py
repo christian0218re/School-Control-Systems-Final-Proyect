@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from tkcalendar import DateEntry
 from DataBase import conectar
+import re
 
 studentWindow = None
 
@@ -20,13 +21,30 @@ def createStudentWindow():
         carrera = careerEntry.get()
         materia = subEntry.get()
 
+        # Verificar que todos los campos están completos
         if not (id_estudiante and nombre and a_paterno and a_materno and email and estado and fechaNac and carrera and materia):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
+        # Validación del formato de correo electrónico
+        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(email_regex, email):
+            messagebox.showinfo("Error", "El correo electrónico no es válido")
+            return
+
+        # Verificar que el correo no esté ya registrado
+        cursor.execute("SELECT * FROM Alumnos WHERE correo = ?", (email,))
+        if cursor.fetchone():
+            messagebox.showinfo("Error", "El correo electrónico ya está registrado")
+            return
+
+        # Intentar agregar el estudiante
         try:
-            cursor.execute("INSERT INTO Alumnos (id_alumno, nombre, fecha_nacimiento, A_paterno, A_materno, carrera, estado, correo)"
-                           " VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (id_estudiante, nombre, fechaNac, a_paterno, a_materno, carrera, estado, email))
+            cursor.execute(
+                "INSERT INTO Alumnos (id_alumno, nombre, fecha_nacimiento, A_paterno, A_materno, carrera, estado, correo)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (id_estudiante, nombre, fechaNac, a_paterno, a_materno, carrera, estado, email)
+            )
             conn.commit()
             messagebox.showinfo("Éxito", "Alumno registrado correctamente")
             limpiar_campos()
@@ -84,6 +102,18 @@ def createStudentWindow():
 
         if not (id_estudiante and nombre and a_paterno and a_materno and email and estado and fechaNac and carrera):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
+            return
+
+            # Validación del formato de correo electrónico
+        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(email_regex, email):
+            messagebox.showinfo("Error", "El correo electrónico no es válido")
+            return
+
+            # Verificar que el correo no esté ya registrado
+        cursor.execute("SELECT * FROM Alumnos WHERE correo = ?", (email,))
+        if cursor.fetchone():
+            messagebox.showinfo("Error", "El correo electrónico ya está registrado")
             return
 
         try:
