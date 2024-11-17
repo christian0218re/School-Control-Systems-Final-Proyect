@@ -40,13 +40,32 @@ CREATE TABLE IF NOT EXISTS Alumnos (
     correo TEXT
 );
 
--- Creación de la tabla Maestros
 CREATE TABLE IF NOT EXISTS Maestros (
     id_maestro INTEGER PRIMARY KEY AUTOINCREMENT,
     id_usuario INTEGER NOT NULL,
-    departamento TEXT,
-    especialidad TEXT,
+    nombre TEXT NOT NULL,
+    a_paterno TEXT NOT NULL,
+    a_materno TEXT NOT NULL,
+    correo TEXT NOT NULL,
+    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) NOT NULL,
     FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de unión Maestro_Materias
+CREATE TABLE IF NOT EXISTS Maestro_Materias (
+    id_maestro INTEGER NOT NULL,
+    id_materia INTEGER NOT NULL,
+    PRIMARY KEY (id_maestro, id_materia),
+    FOREIGN KEY (id_maestro) REFERENCES Maestros(id_maestro),
+    FOREIGN KEY (id_materia) REFERENCES Materias(id_materia)
+);
+-- Tabla de unión Maestro_Carreras
+CREATE TABLE IF NOT EXISTS Maestro_Carreras (
+    id_maestro INTEGER NOT NULL,
+    id_carrera INTEGER NOT NULL,
+    PRIMARY KEY (id_maestro, id_carrera),
+    FOREIGN KEY (id_maestro) REFERENCES Maestros(id_maestro),
+    FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera)
 );
 
 -- Creación de la tabla Materias
@@ -92,8 +111,7 @@ CREATE TABLE IF NOT EXISTS Salones (
     ubicacion TEXT
 );
 """
-# Ejecutar el script SQL
-cursor.executescript(script_sql)
+
 
 # Verificar y agregar un usuario administrador
 cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", ('admin',))
