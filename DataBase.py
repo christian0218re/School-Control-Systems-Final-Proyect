@@ -91,15 +91,21 @@ CREATE TABLE IF NOT EXISTS Horarios (
     hora_inicio TIME NOT NULL,
     hora_fin TIME NOT NULL
 );
--- Creación de la tabla Grupos 
+
 CREATE TABLE IF NOT EXISTS Grupos (
     id_grupo INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha DATE NOT NULL,
+    id_carrera INTEGER NOT NULL,
     id_materia INTEGER NOT NULL,
     id_maestro INTEGER NOT NULL,
-    id_horario INTEGER NOT NULL,  -- Nueva referencia a la tabla Horarios
-    periodo TEXT NOT NULL,
+    id_salon INTEGER NOT NULL,
+    id_horario INTEGER NOT NULL,
+    semestre TEXT NOT NULL,
+    max_alumnos INTEGER NOT NULL,
+    FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera),
     FOREIGN KEY (id_materia) REFERENCES Materias(id_materia),
     FOREIGN KEY (id_maestro) REFERENCES Maestros(id_maestro),
+    FOREIGN KEY (id_salon) REFERENCES Salones(id_salon),
     FOREIGN KEY (id_horario) REFERENCES Horarios(id_horario)
 );
 
@@ -111,7 +117,8 @@ CREATE TABLE IF NOT EXISTS Salones (
     ubicacion TEXT
 );
 """
-
+# Ejecutar el script SQL
+cursor.executescript(script_sql)
 
 # Verificar y agregar un usuario administrador
 cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", ('admin',))
@@ -135,8 +142,6 @@ for carrera in carreras:
     if not carrera_existe:
         cursor.execute("INSERT INTO Carreras (nombre_carrera) VALUES (?)", (carrera,))
         print(f"Carrera '{carrera}' creada con éxito.")
-    else:
-        print(f"La carrera '{carrera}' ya existe.")
 
 # Verificar y agregar materias predeterminadas
 materias = [
@@ -151,8 +156,7 @@ for nombre_materia, codigo_materia, creditos, semestre in materias:
         cursor.execute("INSERT INTO Materias (nombre_materia, codigo_materia, creditos, semestre) VALUES (?, ?, ?, ?)",
                        (nombre_materia, codigo_materia, creditos, semestre))
         print(f"Materia '{nombre_materia}' creada con éxito.")
-    else:
-        print(f"La materia '{nombre_materia}' ya existe.")
+
 
 # Confirmar los cambios y cerrar la conexión
 conexion.commit()
