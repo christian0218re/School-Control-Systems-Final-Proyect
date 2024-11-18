@@ -158,6 +158,95 @@ for nombre_materia, codigo_materia, creditos, semestre in materias:
         print(f"Materia '{nombre_materia}' creada con éxito.")
 
 
+
+
+# Agregar usuarios y maestros predeterminados
+usuarios_maestros = [
+    ("Juan", "Pérez", "López", "juan.perez@ejemplo.com", "juan123", "1234", "maestro", "Doctorado"),
+    ("María", "García", "Martínez", "maria.garcia@ejemplo.com", "maria123", "5678", "maestro", "Maestria")
+]
+
+for nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario, grado_estudio in usuarios_maestros:
+    # Verificar si el usuario ya existe
+    cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", (correo,))
+    usuario_existe = cursor.fetchone()
+    
+    if not usuario_existe:
+        # Crear usuario
+        cursor.execute("""
+            INSERT INTO Usuarios (nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario))
+        print(f"Usuario '{nombre_usuario}' creado con éxito.")
+    
+    # Obtener id_usuario del usuario creado o existente
+    cursor.execute("SELECT id_usuario FROM Usuarios WHERE correo = ?", (correo,))
+    id_usuario = cursor.fetchone()[0]
+    
+    # Verificar si el maestro ya existe
+    cursor.execute("SELECT * FROM Maestros WHERE id_usuario = ?", (id_usuario,))
+    maestro_existe = cursor.fetchone()
+
+    if not maestro_existe:
+        # Crear maestro
+        cursor.execute("""
+            INSERT INTO Maestros (id_usuario, nombre, a_paterno, a_materno, correo, grado_estudio)
+            VALUES (?, ?, ?, ?, ?, ?) """, (id_usuario, nombre, a_paterno, a_materno, correo, grado_estudio))
+        print(f"Maestro '{nombre} {a_paterno}' creado con éxito.")
+
+
+# Salones predeterminados
+salones = [
+    ("A101", 30, "Primera planta"),
+    ("B202", 40, "Segunda planta"),
+    ("C303", 25, "Tercer piso"),
+    ("D404", 50, "Edificio principal"),
+    ("E505", 20, "Anexo A")
+]
+
+# Insertar salones si no existen
+for numero_salon, capacidad, ubicacion in salones:
+    cursor.execute("SELECT * FROM Salones WHERE numero_salon = ?", (numero_salon,))
+    salon_existe = cursor.fetchone()
+    if not salon_existe:
+        cursor.execute("INSERT INTO Salones (numero_salon, capacidad, ubicacion) VALUES (?, ?, ?)", (numero_salon, capacidad, ubicacion))
+        print(f"Salón '{numero_salon}' creado con éxito.")
+        
+
+"""
+# Continuar con la asignación de carreras y materias como antes
+cursor.execute("SELECT id_maestro, nombre FROM Maestros")
+maestros_ids = cursor.fetchall()
+
+for id_maestro, nombre in maestros_ids:
+    if nombre == "Juan":
+        # Juan tendrá todas las carreras y materias
+        cursor.execute("SELECT id_carrera FROM Carreras")
+        carreras = cursor.fetchall()
+        cursor.execute("SELECT id_materia FROM Materias")
+        materias = cursor.fetchall()
+
+        for (id_carrera,) in carreras:
+            cursor.execute("INSERT OR IGNORE INTO Maestro_Carreras (id_maestro, id_carrera) VALUES (?, ?)", (id_maestro, id_carrera))
+        for (id_materia,) in materias:
+            cursor.execute("INSERT OR IGNORE INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)", (id_maestro, id_materia))
+
+    elif nombre == "María":
+        # María tendrá todas las carreras pero una sola materia (Matemáticas Discretas)
+        cursor.execute("SELECT id_carrera FROM Carreras")
+        carreras = cursor.fetchall()
+        cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = 'Matemáticas Discretas'")
+        materia = cursor.fetchone()
+
+        if materia:
+            id_materia = materia[0]
+            for (id_carrera,) in carreras:
+                cursor.execute("INSERT OR IGNORE INTO Maestro_Carreras (id_maestro, id_carrera) VALUES (?, ?)", (id_maestro, id_carrera))
+                cursor.execute("INSERT OR IGNORE INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)", (id_maestro, id_materia))
+
+print("Usuarios, maestros y asignaciones creados con éxito.")
+"""
+
 # Confirmar los cambios y cerrar la conexión
 conexion.commit()
 conexion.close()
