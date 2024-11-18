@@ -6,6 +6,7 @@ from Estudiantes import createStudentWindow
 from Usuarios import createUserWindow
 from Materias import createMateriaWindow
 from horario import createHorarioWindow 
+from Grupo import createGrupoWindow
 
 def abrir_menu_principal(user_id, rol, nombre):
     # Cambiar de Tk() a Toplevel() para abrir una nueva ventana sin duplicar la ventana principal
@@ -24,6 +25,7 @@ def abrir_menu_principal(user_id, rol, nombre):
     menu_admin.add_command(label="Materias", command=createMateriaWindow)
     menu_admin.add_command(label="Horarios", command=createHorarioWindow)
     menu_admin.add_command(label="Usuarios", command=createUserWindow)
+    menu_admin.add_command(label="Grupo", command=createGrupoWindow)
 
     menu_alumnos = tk.Menu(barra_menus, tearoff=0)
     menu_alumnos.add_command(label="Administrar Alumnos")
