@@ -7,7 +7,7 @@ from Usuarios import createUserWindow
 from Materias import createMateriaWindow
 from horario import createHorarioWindow 
 from Grupo import createGrupoWindow
-
+from pleanacion import createPlaneacionWindow
 def abrir_menu_principal(user_id, rol, nombre):
     # Cambiar de Tk() a Toplevel() para abrir una nueva ventana sin duplicar la ventana principal
     menu = tk.Toplevel()
@@ -33,6 +33,9 @@ def abrir_menu_principal(user_id, rol, nombre):
     menu_maestros = tk.Menu(barra_menus, tearoff=0)
     menu_maestros.add_command(label="Administrar Maestros")
 
+    menu_planeacion = tk.Menu(barra_menus, tearoff=0)
+    menu_planeacion.add_command(label="Abrir Planeación", command=createPlaneacionWindow)
+
     # Agregar cada menú a la barra de menús
     barra_menus.add_cascade(label="Login", menu=menu_login)
     if rol == "administrador":
@@ -43,6 +46,9 @@ def abrir_menu_principal(user_id, rol, nombre):
 
     if rol == "alumno":
         barra_menus.add_cascade(label="Algo", menu=menu_alumnos)
+
+        
+    barra_menus.add_cascade(label="Planeación", menu=menu_planeacion)
 
     menu.config(menu=barra_menus)
 
