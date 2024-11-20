@@ -43,13 +43,11 @@ CREATE TABLE IF NOT EXISTS Alumnos (
 
 CREATE TABLE IF NOT EXISTS Maestros (
     id_maestro INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_usuario INTEGER NOT NULL,
     nombre TEXT NOT NULL,
     a_paterno TEXT NOT NULL,
     a_materno TEXT NOT NULL,
     correo TEXT NOT NULL,
-    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) NOT NULL,
-    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario)
+    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) NOT NULL
 );
 
 -- Tabla de unión Maestro_Materias
