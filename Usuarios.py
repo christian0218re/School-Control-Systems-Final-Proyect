@@ -116,10 +116,10 @@ def createUserWindow():
                 return
 
             # Validación de nombre de usuario único
-            cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nombre_usuario = ?", (nombre_usuario,))
-            if cursor.fetchone()[0] > 0:
-                messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
-                return
+            #cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nombre_usuario = ?", (nombre_usuario,))
+            #if cursor.fetchone()[0] > 0:
+            #    messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
+            #    return
 
             # Validación de la contraseña
             password_regex = r'^(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}:"<>?]).{6,}$'
