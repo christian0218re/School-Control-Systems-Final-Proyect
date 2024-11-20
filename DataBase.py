@@ -27,17 +27,18 @@ CREATE TABLE IF NOT EXISTS Carreras (
     id_carrera INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre_carrera TEXT UNIQUE NOT NULL
 );
-
 -- Creación de la tabla Alumnos
 CREATE TABLE IF NOT EXISTS Alumnos (
     id_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT,
     fecha_nacimiento DATE,
-    A_paterno TEXT,
-    A_materno TEXT,
+    a_paterno TEXT,
+    a_materno TEXT,
     carrera TEXT,
-    Estado TEXT,
-    correo TEXT
+    estado TEXT,
+    correo TEXT,
+    id_usuario INTEGER NOT NULL, -- Campo que referencia a Usuarios
+    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Maestros (
