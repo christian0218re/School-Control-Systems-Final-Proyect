@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS Carreras (
     id_carrera INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre_carrera TEXT UNIQUE NOT NULL
 );
+
 -- Creación de la tabla Alumnos
 CREATE TABLE IF NOT EXISTS Alumnos (
     id_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +40,15 @@ CREATE TABLE IF NOT EXISTS Alumnos (
     correo TEXT,
     id_usuario INTEGER NOT NULL, -- Campo que referencia a Usuarios
     FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Tabla de unión Alumno_Materias
+CREATE TABLE IF NOT EXISTS Alumno_Materias (
+    id_alumno INTEGER NOT NULL,
+    id_materia INTEGER NOT NULL,
+    PRIMARY KEY (id_alumno, id_materia),
+    FOREIGN KEY (id_alumno) REFERENCES Alumnos(id_alumno) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (id_materia) REFERENCES Materias(id_materia) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS Maestros (
@@ -58,6 +68,7 @@ CREATE TABLE IF NOT EXISTS Maestro_Materias (
     FOREIGN KEY (id_maestro) REFERENCES Maestros(id_maestro),
     FOREIGN KEY (id_materia) REFERENCES Materias(id_materia)
 );
+
 -- Tabla de unión Maestro_Carreras
 CREATE TABLE IF NOT EXISTS Maestro_Carreras (
     id_maestro INTEGER NOT NULL,
@@ -66,6 +77,7 @@ CREATE TABLE IF NOT EXISTS Maestro_Carreras (
     FOREIGN KEY (id_maestro) REFERENCES Maestros(id_maestro),
     FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera)
 );
+
 
 -- Creación de la tabla Materias
 CREATE TABLE IF NOT EXISTS Materias (
@@ -76,7 +88,6 @@ CREATE TABLE IF NOT EXISTS Materias (
     semestre TEXT
 );
 
--- Creación de la tabla intermedia Materias_Carreras
 CREATE TABLE IF NOT EXISTS Materias_Carreras (
     id_materia INTEGER NOT NULL,
     id_carrera INTEGER NOT NULL,
@@ -84,6 +95,7 @@ CREATE TABLE IF NOT EXISTS Materias_Carreras (
     FOREIGN KEY (id_materia) REFERENCES Materias(id_materia),
     FOREIGN KEY (id_carrera) REFERENCES Carreras(id_carrera)
 );
+
 CREATE TABLE IF NOT EXISTS Horarios (
     id_horario INTEGER PRIMARY KEY AUTOINCREMENT,
     turno TEXT CHECK(turno IN ('matutino', 'vespertino')) NOT NULL,
@@ -108,6 +120,15 @@ CREATE TABLE IF NOT EXISTS Grupos (
     FOREIGN KEY (id_horario) REFERENCES Horarios(id_horario)
 );
 
+
+CREATE TABLE IF NOT EXISTS Grupo_Alumnos (
+    id_grupo INTEGER NOT NULL,
+    id_alumno INTEGER NOT NULL,
+    PRIMARY KEY (id_grupo, id_alumno),
+    FOREIGN KEY (id_grupo) REFERENCES Grupos(id_grupo) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (id_alumno) REFERENCES Alumnos(id_alumno) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- Creación de la tabla Salones
 CREATE TABLE IF NOT EXISTS Salones (
     id_salon INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,85 +136,11 @@ CREATE TABLE IF NOT EXISTS Salones (
     capacidad INTEGER NOT NULL,
     ubicacion TEXT
 );
+
 """
 # Ejecutar el script SQL
 cursor.executescript(script_sql)
-
-# Verificar y agregar un usuario administrador
-cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", ('admin',))
-admin_existe = cursor.fetchone()
-
-if not admin_existe:
-    cursor.execute('''
-        INSERT INTO Usuarios (nombre,a_paterno, a_materno, correo, contraseña,nombre_usuario, tipo_usuario)
-        VALUES (?, ?, ?, ?, ?, ?, ?)'''
-    , ('admin', 'admin' , 'admin', 'admin','admin','admin','administrador'))
-    print("Usuario admin creado con éxito.")
-else:
-    print("El usuario admin ya existe.")
-
-
-# Verificar y agregar carreras predeterminadas
-carreras = ['Ingeniería en Computación', 'Derecho', 'Medicina']
-for carrera in carreras:
-    cursor.execute("SELECT * FROM Carreras WHERE nombre_carrera = ?", (carrera,))
-    carrera_existe = cursor.fetchone()
-    if not carrera_existe:
-        cursor.execute("INSERT INTO Carreras (nombre_carrera) VALUES (?)", (carrera,))
-        print(f"Carrera '{carrera}' creada con éxito.")
-
-# Verificar y agregar materias predeterminadas
-materias = [
-    ('Matemáticas Discretas', 'MAT101', 8, 'septimo'),
-    ('Derecho Penal', 'DER201', 5, 'noveno'),
-    ('Anatomía', 'MED301', 4, 'tercero')
-]
-for nombre_materia, codigo_materia, creditos, semestre in materias:
-    cursor.execute("SELECT * FROM Materias WHERE codigo_materia = ?", (codigo_materia,))
-    materia_existe = cursor.fetchone()
-    if not materia_existe:
-        cursor.execute("INSERT INTO Materias (nombre_materia, codigo_materia, creditos, semestre) VALUES (?, ?, ?, ?)",
-                       (nombre_materia, codigo_materia, creditos, semestre))
-        print(f"Materia '{nombre_materia}' creada con éxito.")
-
-
-
-
-# Agregar usuarios y maestros predeterminados
-usuarios_maestros = [
-    ("Juan", "Pérez", "López", "juan.perez@ejemplo.com", "juan123", "1234", "maestro", "Doctorado"),
-    ("María", "García", "Martínez", "maria.garcia@ejemplo.com", "maria123", "5678", "maestro", "Maestria")
-]
-
-for nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario, grado_estudio in usuarios_maestros:
-    # Verificar si el usuario ya existe
-    cursor.execute("SELECT * FROM Usuarios WHERE correo = ?", (correo,))
-    usuario_existe = cursor.fetchone()
-    
-    if not usuario_existe:
-        # Crear usuario
-        cursor.execute("""
-            INSERT INTO Usuarios (nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario))
-        print(f"Usuario '{nombre_usuario}' creado con éxito.")
-    
-    # Obtener id_usuario del usuario creado o existente
-    cursor.execute("SELECT id_usuario FROM Usuarios WHERE correo = ?", (correo,))
-    id_usuario = cursor.fetchone()[0]
-    
-    # Verificar si el maestro ya existe
-    cursor.execute("SELECT * FROM Maestros WHERE id_usuario = ?", (id_usuario,))
-    maestro_existe = cursor.fetchone()
-
-    if not maestro_existe:
-        # Crear maestro
-        cursor.execute("""
-            INSERT INTO Maestros (id_usuario, nombre, a_paterno, a_materno, correo, grado_estudio)
-            VALUES (?, ?, ?, ?, ?, ?) """, (id_usuario, nombre, a_paterno, a_materno, correo, grado_estudio))
-        print(f"Maestro '{nombre} {a_paterno}' creado con éxito.")
-
-
+"""
 # Salones predeterminados
 salones = [
     ("A101", 30, "Primera planta"),
@@ -211,41 +158,137 @@ for numero_salon, capacidad, ubicacion in salones:
         cursor.execute("INSERT INTO Salones (numero_salon, capacidad, ubicacion) VALUES (?, ?, ?)", (numero_salon, capacidad, ubicacion))
         print(f"Salón '{numero_salon}' creado con éxito.")
         
+# Datos para las tablas relacionadas
+carrera = ("Computación",)
+materias = [
+    ("Matemáticas Discretas", "MAT101", 8, "1°"),
+    ("Estructuras de Datos", "EST202", 10, "3°"),
+    ("Redes de Computadoras", "RED303", 9, "5°"),
+    ("Sistemas Operativos", "SIS404", 9, "5°"),
+    ("Inteligencia Artificial", "IA505", 10, "7°")
+]
+maestros = [
+    ("Juan", "Pérez", "García", "juan.perez@example.com", "Doctorado"),
+    ("Ana", "López", "Martínez", "ana.lopez@example.com", "Maestria"),
+    ("Luis", "Hernández", "Sánchez", "luis.hernandez@example.com", "Licenciatura"),
+    ("María", "González", "Ramírez", "maria.gonzalez@example.com", "Doctorado"),
+    ("Carlos", "Ramírez", "Torres", "carlos.ramirez@example.com", "Maestria")
+]
+alumnos = [
+    ("Roberto", "Martínez", "López", "1995-06-15", "computacion1@example.com"),
+    ("Laura", "Fernández", "García", "1996-08-20", "computacion2@example.com"),
+    ("Pedro", "Sánchez", "Torres", "1994-02-10", "computacion3@example.com"),
+    ("Mónica", "Castro", "Hernández", "1997-12-25", "computacion4@example.com"),
+    ("José", "Rodríguez", "Pérez", "1998-05-18", "computacion5@example.com")
+]
+usuarios = [
+    # Tipo usuario: administrador, maestro, alumno
+    ("admin", "admin", "admin", "admin", "administrador", "", ""),  # Sin apellidos
+    ("Juan Pérez", "juan.perez@example.com", "juan", "1234", "maestro", "Pérez", "Juan"),
+    ("Ana López", "ana.lopez@example.com", "ana", "1234", "maestro", "López", "Ana"),
+    ("Luis Hernández", "luis.hernandez@example.com", "luis", "1234", "maestro", "Hernández", "Luis"),
+    ("Roberto Martínez", "computacion1@example.com", "roberto", "1234", "alumno", "Martínez", "Roberto"),
+    ("Laura Fernández", "computacion2@example.com", "laura", "1234", "alumno", "Fernández", "Laura"),
+    ("Pedro Sánchez", "computacion3@example.com", "pedro", "1234", "alumno", "Sánchez", "Pedro")
+]
 
+# Relación de materias con carrera
+materias_carrera = [
+    (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)  # Todas las materias pertenecen a la carrera 1
+]
+
+# Relación de maestros con carrera
+maestros_carrera = [
+    (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)  # Todos los maestros están en Computación
+]
+
+# Relación alumnos-materias
+alumnos_materias = [
+    (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),  # Roberto tiene todas las materias
+    (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),  # Laura tiene todas las materias
+    (3, 1), (3, 2), (3, 3),                 # Pedro tiene 3 materias
+    (4, 3), (4, 4), (4, 5),                 # Mónica tiene 3 materias
+    (5, 1), (5, 2), (5, 4), (5, 5)          # José tiene 4 materias
+]
+
+# Carreras
+cursor.execute("INSERT INTO Carreras (nombre_carrera) VALUES (?)", carrera)
+
+# Materias
+for nombre, codigo, creditos, semestre in materias:
+    cursor.execute("INSERT INTO Materias (nombre_materia, codigo_materia, creditos, semestre) VALUES (?, ?, ?, ?)", (nombre, codigo, creditos, semestre))
+
+# Usuarios
+for nombre, correo, usuario, contraseña, tipo, a_paterno, a_materno in usuarios:
+    cursor.execute("INSERT INTO Usuarios (nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                   (nombre, a_paterno, a_materno, correo, usuario, contraseña, tipo))
+# Maestros
+for nombre, a_paterno, a_materno, correo, grado in maestros:
+    cursor.execute("INSERT INTO Maestros (nombre, a_paterno, a_materno, correo, grado_estudio) VALUES (?, ?, ?, ?, ?)", (nombre, a_paterno, a_materno, correo, grado))
+
+# Alumnos
+for nombre, a_paterno, a_materno, fecha, correo in alumnos:
+    cursor.execute("INSERT INTO Alumnos (nombre, a_paterno, a_materno, fecha_nacimiento, correo, carrera, estado, id_usuario) VALUES (?, ?, ?, ?, ?, ?, 'Activo', ?)", 
+                  (nombre, a_paterno, a_materno, fecha, correo, "Computación", 1))
+
+# Relaciones Maestro-Carrera y Materias-Carrera
+for id_maestro, id_carrera in maestros_carrera:
+    cursor.execute("INSERT INTO Maestro_Carreras (id_maestro, id_carrera) VALUES (?, ?)", (id_maestro, id_carrera))
+
+for id_materia, id_carrera in materias_carrera:
+    cursor.execute("INSERT INTO Materias_Carreras (id_materia, id_carrera) VALUES (?, ?)", (id_materia, id_carrera))
+
+# Relación Alumnos-Materias
+for id_alumno, id_materia in alumnos_materias:
+    cursor.execute("INSERT INTO Alumno_Materias (id_alumno, id_materia) VALUES (?, ?)", (id_alumno, id_materia))
+
+# Guardar cambios
+conexion.commit()
+print("Datos insertados correctamente.")
 """
-# Continuar con la asignación de carreras y materias como antes
-cursor.execute("SELECT id_maestro, nombre FROM Maestros")
-maestros_ids = cursor.fetchall()
+def mostrar_datos():
+    # Consultar y mostrar los registros de las tablas
+    cursor.execute("SELECT * FROM Carreras")
+    print("Carreras:")
+    for fila in cursor.fetchall():
+        print(fila)
 
-for id_maestro, nombre in maestros_ids:
-    if nombre == "Juan":
-        # Juan tendrá todas las carreras y materias
-        cursor.execute("SELECT id_carrera FROM Carreras")
-        carreras = cursor.fetchall()
-        cursor.execute("SELECT id_materia FROM Materias")
-        materias = cursor.fetchall()
+    cursor.execute("SELECT * FROM Materias")
+    print("\nMaterias:")
+    for fila in cursor.fetchall():
+        print(fila)
 
-        for (id_carrera,) in carreras:
-            cursor.execute("INSERT OR IGNORE INTO Maestro_Carreras (id_maestro, id_carrera) VALUES (?, ?)", (id_maestro, id_carrera))
-        for (id_materia,) in materias:
-            cursor.execute("INSERT OR IGNORE INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)", (id_maestro, id_materia))
+    cursor.execute("SELECT * FROM Usuarios")
+    print("\nUsuarios:")
+    for fila in cursor.fetchall():
+        print(fila)
 
-    elif nombre == "María":
-        # María tendrá todas las carreras pero una sola materia (Matemáticas Discretas)
-        cursor.execute("SELECT id_carrera FROM Carreras")
-        carreras = cursor.fetchall()
-        cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = 'Matemáticas Discretas'")
-        materia = cursor.fetchone()
+    cursor.execute("SELECT * FROM Maestros")
+    print("\nMaestros:")
+    for fila in cursor.fetchall():
+        print(fila)
 
-        if materia:
-            id_materia = materia[0]
-            for (id_carrera,) in carreras:
-                cursor.execute("INSERT OR IGNORE INTO Maestro_Carreras (id_maestro, id_carrera) VALUES (?, ?)", (id_maestro, id_carrera))
-                cursor.execute("INSERT OR IGNORE INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)", (id_maestro, id_materia))
+    cursor.execute("SELECT * FROM Alumnos")
+    print("\nAlumnos:")
+    for fila in cursor.fetchall():
+        print(fila)
 
-print("Usuarios, maestros y asignaciones creados con éxito.")
-"""
+    cursor.execute("SELECT * FROM Alumno_Materias")
+    print("\nAlumno_Materias:")
+    for fila in cursor.fetchall():
+        print(fila)
 
+    cursor.execute("SELECT * FROM Maestro_Carreras")
+    print("\nMaestro_Carreras:")
+    for fila in cursor.fetchall():
+        print(fila)
+
+    cursor.execute("SELECT * FROM Materias_Carreras")
+    print("\nMaterias_Carreras:")
+    for fila in cursor.fetchall():
+        print(fila)
+
+mostrar_datos()
 # Confirmar los cambios y cerrar la conexión
 conexion.commit()
 conexion.close()
