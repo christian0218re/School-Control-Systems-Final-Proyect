@@ -12,13 +12,15 @@ def createPlaneacionWindow():
             g.id_grupo, c.nombre_carrera AS carrera, m.nombre_materia AS materia, 
             ma.nombre || ' ' || ma.a_paterno || ' ' || ma.a_materno AS maestro,
             s.numero_salon AS salon, h.hora_inicio, h.hora_fin, h.turno, 
-            g.semestre, g.max_alumnos
+            g.semestre, g.max_alumnos,
+            COUNT(CASE WHEN ga.activo = 1 THEN 1 END) as alumnos_inscritos
         FROM Grupos g
         JOIN Carreras c ON g.id_carrera = c.id_carrera
         JOIN Materias m ON g.id_materia = m.id_materia
         JOIN Maestros ma ON g.id_maestro = ma.id_maestro
         JOIN Salones s ON g.id_salon = s.id_salon
         JOIN Horarios h ON g.id_horario = h.id_horario
+        LEFT JOIN Grupo_Alumnos ga ON g.id_grupo = ga.id_grupo
         """
         filtros = []
         if filtro_carrera:
@@ -28,7 +30,7 @@ def createPlaneacionWindow():
             query += " AND m.nombre_materia = ?" if filtro_carrera else " WHERE m.nombre_materia = ?"
             filtros.append(filtro_materia)
         
-        query += " ORDER BY h.hora_inicio ASC, h.turno ASC"
+        query += " GROUP BY g.id_grupo ORDER BY h.hora_inicio ASC, h.turno ASC"
         
         cursor.execute(query, filtros)
         grupos = cursor.fetchall()
@@ -54,7 +56,8 @@ def createPlaneacionWindow():
         
         grupos = cargar_grupos(combo_carrera.get(), combo_materia.get())
         for grupo in grupos:
-            id_grupo, carrera, materia, maestro, salon, hora_inicio, hora_fin, turno, semestre, max_alumnos = grupo
+            id_grupo, carrera, materia, maestro, salon, hora_inicio, hora_fin, turno, semestre, max_alumnos, alumnos_inscritos = grupo
+            
             # Crear un Frame para cada grupo
             card = tk.Frame(frame_grupos, bg="lightblue", bd=2, relief="solid", padx=10, pady=10)
             card.pack(fill="x", padx=5, pady=5)
@@ -67,7 +70,16 @@ def createPlaneacionWindow():
             tk.Label(card, text=f"Salón: {salon}", bg="lightblue").grid(row=4, column=0, sticky="w")
             tk.Label(card, text=f"Horario: {turno} {hora_inicio}-{hora_fin}", bg="lightblue").grid(row=5, column=0, sticky="w")
             tk.Label(card, text=f"Semestre: {semestre}", bg="lightblue").grid(row=6, column=0, sticky="w")
-            tk.Label(card, text=f"Máx. Alumnos: {max_alumnos}", bg="lightblue").grid(row=7, column=0, sticky="w")
+            
+            # Agregar información de alumnos con porcentaje de ocupación
+            ocupacion = (alumnos_inscritos / max_alumnos * 100) if max_alumnos > 0 else 0
+            color = "green" if ocupacion < 80 else "orange" if ocupacion < 100 else "red"
+            
+            tk.Label(card, 
+                    text=f"Alumnos: {alumnos_inscritos}/{max_alumnos} ({ocupacion:.1f}%)", 
+                    bg="lightblue", 
+                    fg=color, 
+                    font=("Arial", 10, "bold")).grid(row=7, column=0, sticky="w")
 
     # Crear la ventana principal
     root = tk.Tk()
@@ -99,11 +111,9 @@ def createPlaneacionWindow():
         filtered_carreras = [carrera for carrera in carreras if search_term in carrera.lower()]
         combo_carrera['values'] = [""] + filtered_carreras 
 
-
     # Asociar el evento de key release para filtrar las materias
     combo_materia.bind("<KeyRelease>", filtrar_materias)
     combo_carrera.bind("<KeyRelease>", filtrar_carreras)
-
 
     btn_filtrar = tk.Button(frame_filtros, text="Filtrar", command=actualizar_vista)
     btn_filtrar.pack(side="left", padx=5)

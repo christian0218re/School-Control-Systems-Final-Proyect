@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS Carreras (
     nombre_carrera TEXT UNIQUE NOT NULL
 );
 
--- Creación de la tabla Alumnos
 CREATE TABLE IF NOT EXISTS Alumnos (
     id_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT,
@@ -39,13 +38,15 @@ CREATE TABLE IF NOT EXISTS Alumnos (
     estado TEXT,
     correo TEXT,
     id_usuario INTEGER NOT NULL, -- Campo que referencia a Usuarios
+    horarios_ocupados TEXT,  -- Campo añadido para almacenar horarios ocupados
     FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- Tabla de unión Alumno_Materias
+-- Tabla de unión Alumno_Materias con columna asignado
 CREATE TABLE IF NOT EXISTS Alumno_Materias (
     id_alumno INTEGER NOT NULL,
     id_materia INTEGER NOT NULL,
+    asignado INTEGER DEFAULT 0, 
     PRIMARY KEY (id_alumno, id_materia),
     FOREIGN KEY (id_alumno) REFERENCES Alumnos(id_alumno) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (id_materia) REFERENCES Materias(id_materia) ON DELETE CASCADE ON UPDATE CASCADE
@@ -57,7 +58,8 @@ CREATE TABLE IF NOT EXISTS Maestros (
     a_paterno TEXT NOT NULL,
     a_materno TEXT NOT NULL,
     correo TEXT NOT NULL,
-    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) NOT NULL
+    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) NOT NULL,
+    horarios_ocupados TEXT  -- Campo añadido para almacenar horarios ocupados
 );
 
 -- Tabla de unión Maestro_Materias
@@ -120,14 +122,22 @@ CREATE TABLE IF NOT EXISTS Grupos (
     FOREIGN KEY (id_horario) REFERENCES Horarios(id_horario)
 );
 
-
+-- Crear tabla de relación entre Grupos y Alumnos
 CREATE TABLE IF NOT EXISTS Grupo_Alumnos (
+    id_grupo_alumno INTEGER PRIMARY KEY AUTOINCREMENT,
     id_grupo INTEGER NOT NULL,
     id_alumno INTEGER NOT NULL,
-    PRIMARY KEY (id_grupo, id_alumno),
-    FOREIGN KEY (id_grupo) REFERENCES Grupos(id_grupo) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (id_alumno) REFERENCES Alumnos(id_alumno) ON DELETE CASCADE ON UPDATE CASCADE
+    fecha_asignacion DATE NOT NULL,
+    activo BOOLEAN DEFAULT 1,  -- Para manejar bajas temporales o definitivas
+    FOREIGN KEY (id_grupo) REFERENCES Grupos(id_grupo),
+    FOREIGN KEY (id_alumno) REFERENCES Alumnos(id_alumno),
+    -- Garantizar que un alumno no esté dos veces en el mismo grupo
+    UNIQUE(id_grupo, id_alumno)
 );
+
+-- Crear índices para mejorar el rendimiento de las búsquedas
+CREATE INDEX IF NOT EXISTS idx_grupo_alumnos_grupo ON Grupo_Alumnos(id_grupo);
+CREATE INDEX IF NOT EXISTS idx_grupo_alumnos_alumno ON Grupo_Alumnos(id_alumno);
 
 -- Creación de la tabla Salones
 CREATE TABLE IF NOT EXISTS Salones (
@@ -137,10 +147,33 @@ CREATE TABLE IF NOT EXISTS Salones (
     ubicacion TEXT
 );
 
+CREATE TABLE IF NOT EXISTS GrupoCreado (
+    grupo INTEGER PRIMARY KEY AUTOINCREMENT,
+    Creado INTEGER DEFAULT 0
+);
+
 """
 # Ejecutar el script SQL
 cursor.executescript(script_sql)
 """
+prueba =cursor.execute("SELECT COUNT(*) FROM GrupoCreado WHERE grupo = 1")
+
+def inicializarGrupoCreado():
+    try:
+        # Verificar si existe un registro con grupoid = 1
+        cursor.execute("SELECT COUNT(*) FROM GrupoCreado WHERE grupo = 1")
+        if cursor.fetchone()[0] == 0:
+            # Crear el grupo inicial
+            cursor.execute("INSERT INTO GrupoCreado (Creado) VALUES (0)")
+            print("Grupo inicial creado con grupo = 1 y Creado = 0.")
+        else:
+            print("El grupo inicial ya existe.")
+    except Exception as e:
+        print(f"Error al inicializar el grupo: {e}")
+    finally:
+        pass
+
+inicializarGrupoCreado()
 # Salones predeterminados
 salones = [
     ("A101", 30, "Primera planta"),
@@ -201,6 +234,13 @@ materias_carrera = [
 maestros_carrera = [
     (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)  # Todos los maestros están en Computación
 ]
+maestro_materias = [
+    (1, 1), (1, 2),  # Juan enseña Matemáticas Discretas y Estructuras de Datos
+    (2, 3), (2, 4),  # Ana enseña Redes de Computadoras y Sistemas Operativos
+    (3, 5),          # Luis enseña Inteligencia Artificial
+    (4, 1), (4, 4),  # María enseña Matemáticas Discretas y Sistemas Operativos
+    (5, 2), (5, 5)   # Carlos enseña Estructuras de Datos e Inteligencia Artificial
+]
 
 # Relación alumnos-materias
 alumnos_materias = [
@@ -208,7 +248,15 @@ alumnos_materias = [
     (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),  # Laura tiene todas las materias
     (3, 1), (3, 2), (3, 3),                 # Pedro tiene 3 materias
     (4, 3), (4, 4), (4, 5),                 # Mónica tiene 3 materias
-    (5, 1), (5, 2), (5, 4), (5, 5)          # José tiene 4 materias
+    (5, 1), (5, 2), (5, 3),          # José tiene 4 materias
+]
+horarios = [
+    ('matutino', '07:00', '08:00'),
+    ('matutino', '09:00', '10:00'),
+    ('matutino', '10:00', '11:00'),
+    ('matutino', '7:00', '10:00'),
+    ('vespertino', '13:00', '14:00'),
+    ('vespertino', '14:00', '15:00')
 ]
 
 # Carreras
@@ -238,14 +286,19 @@ for id_maestro, id_carrera in maestros_carrera:
 for id_materia, id_carrera in materias_carrera:
     cursor.execute("INSERT INTO Materias_Carreras (id_materia, id_carrera) VALUES (?, ?)", (id_materia, id_carrera))
 
+# Insertar relaciones entre maestros y materias
+for id_maestro, id_materia in maestro_materias:
+    cursor.execute("INSERT INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)", (id_maestro, id_materia))
 # Relación Alumnos-Materias
 for id_alumno, id_materia in alumnos_materias:
     cursor.execute("INSERT INTO Alumno_Materias (id_alumno, id_materia) VALUES (?, ?)", (id_alumno, id_materia))
-
+# Insertar horarios en la tabla
+for turno, hora_inicio, hora_fin in horarios:
+    cursor.execute("INSERT INTO Horarios (turno, hora_inicio, hora_fin) VALUES (?, ?, ?)", (turno, hora_inicio, hora_fin))
 # Guardar cambios
 conexion.commit()
 print("Datos insertados correctamente.")
-"""
+
 def mostrar_datos():
     # Consultar y mostrar los registros de las tablas
     cursor.execute("SELECT * FROM Carreras")
@@ -268,27 +321,17 @@ def mostrar_datos():
     for fila in cursor.fetchall():
         print(fila)
 
-    cursor.execute("SELECT * FROM Alumnos")
-    print("\nAlumnos:")
+    cursor.execute("SELECT * FROM Maestro_Materias")
+    print("\nRelación Maestros-Materias:")
     for fila in cursor.fetchall():
         print(fila)
 
     cursor.execute("SELECT * FROM Alumno_Materias")
-    print("\nAlumno_Materias:")
+    print("\nRelación Alumnos-Materias:")
     for fila in cursor.fetchall():
         print(fila)
-
-    cursor.execute("SELECT * FROM Maestro_Carreras")
-    print("\nMaestro_Carreras:")
-    for fila in cursor.fetchall():
-        print(fila)
-
-    cursor.execute("SELECT * FROM Materias_Carreras")
-    print("\nMaterias_Carreras:")
-    for fila in cursor.fetchall():
-        print(fila)
-
-mostrar_datos()
+"""
+#mostrar_datos()
 # Confirmar los cambios y cerrar la conexión
 conexion.commit()
 conexion.close()
