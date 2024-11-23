@@ -4,6 +4,7 @@ from tkinter import ttk
 from tkcalendar import DateEntry
 from DataBase import conectar  
 from datetime import date
+import sqlite3
 def createGrupoWindow():
 
     def buscar_grupo():
@@ -511,20 +512,17 @@ def createGrupoWindow():
                 WHERE ga.id_grupo = ? AND ga.activo = 1
             """, (id_grupo,))
             alumnos_asignados = cursor.fetchall()
-            
-            # Obtener alumnos de la carrera que no están en el grupo pero tienen la materia asignada
+
+            # Obtener alumnos de la misma carrera que el grupo que no están en el grupo
             cursor.execute("""
-                SELECT DISTINCT a.id_alumno, a.nombre, a.a_paterno, a.a_materno 
+                SELECT DISTINCT a.id_alumno, a.nombre, a.a_paterno, a.a_materno
                 FROM Alumnos a
-                INNER JOIN Alumno_Materias am ON a.id_alumno = am.id_alumno
                 WHERE a.carrera = (SELECT nombre_carrera FROM Carreras WHERE id_carrera = ?)
-                AND am.id_materia = ?
-                AND am.asignado = 0
                 AND a.id_alumno NOT IN (
                     SELECT id_alumno FROM Grupo_Alumnos 
                     WHERE id_grupo = ? AND activo = 1
                 )
-            """, (id_carrera, id_materia, id_grupo))
+            """, (id_carrera, id_grupo))
             alumnos_disponibles = cursor.fetchall()
 
             # Limpiar listboxes
@@ -547,6 +545,17 @@ def createGrupoWindow():
             conn = conectar()
             cursor = conn.cursor()
             
+
+            # Obtener ID de carrera del grupo
+            cursor.execute("SELECT id_carrera, id_materia FROM Grupos WHERE id_grupo = ?", (id_grupo,))
+            grupo_info = cursor.fetchone()
+            if not grupo_info:
+                messagebox.showinfo("Error", "No se encontró información del grupo")
+                conn.close()
+                return
+            
+            id_carrera, id_materia = grupo_info
+
             # Verificar límite de alumnos
             cursor.execute("SELECT max_alumnos FROM Grupos WHERE id_grupo = ?", (id_grupo,))
             max_alumnos = cursor.fetchone()[0]
@@ -602,13 +611,23 @@ def createGrupoWindow():
                     # Verificar si el alumno ya está en el grupo
                     cursor.execute("SELECT COUNT(*) FROM Grupo_Alumnos WHERE id_grupo = ? AND id_alumno = ?", (id_grupo, id_alumno))
                     if cursor.fetchone()[0] > 0:
-                        messagebox.showinfo("Error", f"El alumno con ID {id_alumno} ya está en el grupo")
                         continue
                     # Agregar alumno al grupo
                     cursor.execute("""
                         INSERT INTO Grupo_Alumnos (id_grupo, id_alumno, fecha_asignacion, activo)
                         VALUES (?, ?, ?, 1)
                     """, (id_grupo, id_alumno, fecha_actual))
+
+                    # Verificar si el alumno ya tiene la materia asignada
+                    cursor.execute("SELECT COUNT(*) FROM Alumno_Materias WHERE id_alumno = ? AND id_materia = ? AND asignado = 1", (id_alumno, id_materia))
+                    if cursor.fetchone()[0] > 0:
+                        continue
+                    else:
+                        # Agregar la materia al alumno
+                        cursor.execute("""
+                            INSERT INTO Alumno_Materias (id_alumno, id_materia, asignado)
+                            VALUES (?, ?, 1)
+                        """, (id_alumno, id_materia))
                     # Obtener el horario del grupo que se está agregando
                     cursor.execute("""
                         SELECT h.hora_inicio, h.hora_fin 
@@ -639,7 +658,7 @@ def createGrupoWindow():
                     
                     
                 except sqlite3.IntegrityError:
-                    messagebox.showinfo("Error", f"El alumno con ID {id_alumno} ya está en el grupo")
+                    #essagebox.showinfo("Error", f"El alumno con ID {id_alumno} ya está en el grupo")
                     continue
 
             conn.commit()

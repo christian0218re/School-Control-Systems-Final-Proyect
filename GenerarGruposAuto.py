@@ -31,21 +31,20 @@ def createGenerarGruposWindow():
                 print("Entro Materia ", materia[0])
                 id_materia = materia[0]
                 
-                # Paso 3: Verificar si hay entre 3 y 5 alumnos no asignados a esa materia para la carrera
+                # Paso 3: Obtener alumnos disponibles que no tienen conflicto de horario
                 cursor.execute("""
-                    SELECT COUNT(*) FROM Alumno_Materias am
+                    SELECT DISTINCT am.id_alumno, a.horarios_ocupados 
+                    FROM Alumno_Materias am
                     JOIN Alumnos a ON am.id_alumno = a.id_alumno
-                    WHERE am.id_materia = ? AND a.carrera = ? AND am.asignado = 0
+                    WHERE am.id_materia = ? 
+                    AND a.carrera = ? 
+                    AND am.asignado = 0
                 """, (id_materia, carrera[1]))
-                count_alumnos = cursor.fetchone()[0]
-                print(f"Alumnos no asignados para materia {id_materia} y carrera {carrera[1]}: {count_alumnos}")
+                alumnos_disponibles = cursor.fetchall()
                 
-                # Si no hay suficientes alumnos, saltamos a la siguiente materia
-                if not (3 <= count_alumnos <= 5):
+                if len(alumnos_disponibles) < 3:
                     print(f"No hay suficientes alumnos disponibles para la materia {id_materia}")
-                    continue  # Salta a la siguiente materia
-
-                print("Alumnos en rango (3-5)")
+                    continue
 
                 # Paso 4: Verificar que haya un maestro disponible
                 cursor.execute("""
@@ -59,12 +58,12 @@ def createGenerarGruposWindow():
                 maestros = cursor.fetchall()
                 if not maestros:
                     print(f"No hay maestros disponibles para la materia {id_materia}")
-                    continue  # Salta a la siguiente materia si no hay maestros
+                    continue
                     
-                grupo_creado = False  # Variable para controlar si se creó el grupo
+                grupo_creado = False
                 
                 for maestro in maestros:
-                    if grupo_creado:  # Si ya se creó un grupo, salir del bucle de maestros
+                    if grupo_creado:
                         break
                         
                     print("Evaluando Maestro")
@@ -72,7 +71,8 @@ def createGenerarGruposWindow():
                     
                     # Paso 5: Verificar horarios disponibles
                     cursor.execute("""
-                        SELECT h.id_horario, h.turno, h.hora_inicio, h.hora_fin FROM Horarios h
+                        SELECT h.id_horario, h.turno, h.hora_inicio, h.hora_fin 
+                        FROM Horarios h
                         WHERE h.id_horario NOT IN (
                             SELECT id_horario FROM Grupos WHERE id_maestro = ?
                         )
@@ -80,15 +80,28 @@ def createGenerarGruposWindow():
                     horarios = cursor.fetchall()
                     
                     if not horarios:
-                        print(f"No hay horarios disponibles para el maestro {id_maestro}")
-                        continue  # Probar con el siguiente maestro
+                        continue
                     
                     for horario in horarios:
-                        if grupo_creado:  # Si ya se creó un grupo, salir del bucle de horarios
+                        if grupo_creado:
                             break
                             
                         id_horario = horario[0]
-                        print("Evaluando Horario")
+                        horario_actual = f"{horario[1]} {horario[2]} - {horario[3]}"
+                        print(f"Evaluando Horario: {horario_actual}")
+                        
+                        # Filtrar alumnos que no tengan conflicto con este horario
+                        alumnos_sin_conflicto = []
+                        for alumno in alumnos_disponibles:
+                            horarios_ocupados = alumno[1] or ""
+                            if horario_actual not in horarios_ocupados:
+                                alumnos_sin_conflicto.append(alumno[0])
+                                if len(alumnos_sin_conflicto) >= 5:  # Limitamos a 5 alumnos máximo
+                                    break
+                        
+                        if len(alumnos_sin_conflicto) < 3:
+                            print(f"No hay suficientes alumnos sin conflicto para el horario {horario_actual}")
+                            continue
                         
                         # Paso 6: Verificar salones disponibles
                         cursor.execute("""
@@ -100,66 +113,62 @@ def createGenerarGruposWindow():
                         salones = cursor.fetchall()
                         
                         if not salones:
-                            print(f"No hay salones disponibles para el horario {id_horario}")
-                            continue  # Probar con el siguiente horario
+                            continue
                         
                         print("Creando grupo...")
                         try:
-                                # Paso 7: Crear el grupo
-                                fecha = '2024-11-21'
-                                semestre = '2024-1'
-                                max_alumnos = 5
+                            # Paso 7: Crear el grupo
+                            fecha = '2024-11-21'
+                            semestre = '2024-1'
+                            max_alumnos = 5
 
+                            cursor.execute("""
+                                INSERT INTO Grupos (fecha, id_carrera, id_materia, id_maestro, id_salon, id_horario, semestre, max_alumnos)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (fecha, id_carrera, id_materia, id_maestro, salones[0][0], id_horario, semestre, max_alumnos))
+                            
+                            id_grupo = cursor.lastrowid
+
+                            # Paso 8: Asignar los alumnos seleccionados al grupo
+                            for id_alumno in alumnos_sin_conflicto:
+                                # Insertar en la tabla Grupo_Alumnos
                                 cursor.execute("""
-                                    INSERT INTO Grupos (fecha, id_carrera, id_materia, id_maestro, id_salon, id_horario, semestre, max_alumnos)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                                """, (fecha, id_carrera, id_materia, id_maestro, salones[0][0], id_horario, semestre, max_alumnos))
+                                    INSERT INTO Grupo_Alumnos (id_grupo, id_alumno, fecha_asignacion)
+                                    VALUES (?, ?, ?)
+                                """, (id_grupo, id_alumno, fecha))
                                 
-                                # Obtener el ID del grupo recién creado
-                                id_grupo = cursor.lastrowid
-
-                                # Paso 8: Obtener los alumnos que serán asignados
+                                # Actualizar el estado de asignación
                                 cursor.execute("""
-                                    SELECT id_alumno FROM Alumno_Materias 
-                                    WHERE id_materia = ? AND asignado = 0
-                                    LIMIT 5
-                                """, (id_materia,))
-                                alumnos_para_asignar = cursor.fetchall()
+                                    UPDATE Alumno_Materias 
+                                    SET asignado = 1 
+                                    WHERE id_materia = ? AND id_alumno = ?
+                                """, (id_materia, id_alumno))
 
-                                # Paso 9: Asignar los alumnos al grupo
-                                for alumno in alumnos_para_asignar:
-                                    id_alumno = alumno[0]
-                                    # Insertar en la tabla Grupo_Alumnos
-                                    cursor.execute("""
-                                        INSERT INTO Grupo_Alumnos (id_grupo, id_alumno, fecha_asignacion)
-                                        VALUES (?, ?, ?)
-                                    """, (id_grupo, id_alumno, fecha))
-                                    
-                                    # Actualizar el estado de asignación en Alumno_Materias
-                                    cursor.execute("""
-                                        UPDATE Alumno_Materias 
-                                        SET asignado = 1 
-                                        WHERE id_materia = ? AND id_alumno = ?
-                                    """, (id_materia, id_alumno))
-
-                                    # Actualizar horarios ocupados del alumno
-                                    cursor.execute("""
-                                        UPDATE Alumnos
-                                        SET horarios_ocupados = IFNULL(horarios_ocupados, '') || ? 
-                                        WHERE id_alumno = ?
-                                    """, (f"{horario[1]} {horario[2]} - {horario[3]}", id_alumno))
-
-                                # Paso 10: Actualizar horarios del maestro
+                                # Actualizar horarios ocupados del alumno
                                 cursor.execute("""
-                                    UPDATE Maestros
-                                    SET horarios_ocupados = IFNULL(horarios_ocupados, '') || ?
-                                    WHERE id_maestro = ?
-                                """, (f"{horario[1]} {horario[2]} - {horario[3]}", id_maestro))
+                                    UPDATE Alumnos
+                                    SET horarios_ocupados = CASE 
+                                        WHEN horarios_ocupados IS NULL OR horarios_ocupados = '' 
+                                        THEN ? 
+                                        ELSE horarios_ocupados || ';' || ? 
+                                    END
+                                    WHERE id_alumno = ?
+                                """, (horario_actual, horario_actual, id_alumno))
 
-                                conexion.commit()
-                                grupo_creado = True
-                                messagebox.showinfo("Éxito", "Grupo generado y alumnos asignados exitosamente.")
-                                
+                            # Actualizar horarios del maestro
+                            cursor.execute("""
+                                UPDATE Maestros
+                                SET horarios_ocupados = CASE 
+                                    WHEN horarios_ocupados IS NULL OR horarios_ocupados = '' 
+                                    THEN ? 
+                                    ELSE horarios_ocupados || ';' || ? 
+                                END
+                                WHERE id_maestro = ?
+                            """, (horario_actual, horario_actual, id_maestro))
+
+                            conexion.commit()
+                            grupo_creado = True
+                            messagebox.showinfo("Éxito", "Grupo generado y alumnos asignados exitosamente.")
                                 
                         except Exception as e:
                             print(f"Error al crear el grupo: {str(e)}")
