@@ -475,8 +475,278 @@ def createGrupoWindow():
             conexion.close()
         except Exception as e:
             print(f"Error al cargar los horarios: {e}")
+    
+    def gestionar_alumnos():
+        # Obtener el ID del grupo actual
+        id_grupo = idEntry.get()
+        if not id_grupo:
+            messagebox.showinfo("Error", "Por favor, seleccione un grupo primero")
+            return
+
+        # Crear ventana para gestionar alumnos
+        alumnosWindow = tk.Toplevel()
+        alumnosWindow.title(f"Gestión de Alumnos - Grupo {id_grupo}")
+        alumnosWindow.geometry("800x600")
+
+        def cargar_alumnos():
+            # Obtener la carrera del grupo
+            conn = conectar()
+            cursor = conn.cursor()
+            
+            # Obtener ID de carrera del grupo
+            cursor.execute("SELECT id_carrera, id_materia FROM Grupos WHERE id_grupo = ?", (id_grupo,))
+            grupo_info = cursor.fetchone()
+            if not grupo_info:
+                messagebox.showinfo("Error", "No se encontró información del grupo")
+                conn.close()
+                return
+            
+            id_carrera, id_materia = grupo_info
+
+            # Obtener alumnos asignados al grupo
+            cursor.execute("""
+                SELECT DISTINCT a.id_alumno, a.nombre, a.a_paterno, a.a_materno 
+                FROM Alumnos a
+                INNER JOIN Grupo_Alumnos ga ON a.id_alumno = ga.id_alumno
+                WHERE ga.id_grupo = ? AND ga.activo = 1
+            """, (id_grupo,))
+            alumnos_asignados = cursor.fetchall()
+            
+            # Obtener alumnos de la carrera que no están en el grupo pero tienen la materia asignada
+            cursor.execute("""
+                SELECT DISTINCT a.id_alumno, a.nombre, a.a_paterno, a.a_materno 
+                FROM Alumnos a
+                INNER JOIN Alumno_Materias am ON a.id_alumno = am.id_alumno
+                WHERE a.carrera = (SELECT nombre_carrera FROM Carreras WHERE id_carrera = ?)
+                AND am.id_materia = ?
+                AND am.asignado = 0
+                AND a.id_alumno NOT IN (
+                    SELECT id_alumno FROM Grupo_Alumnos 
+                    WHERE id_grupo = ? AND activo = 1
+                )
+            """, (id_carrera, id_materia, id_grupo))
+            alumnos_disponibles = cursor.fetchall()
+
+            # Limpiar listboxes
+            listbox_asignados.delete(0, tk.END)
+            listbox_disponibles.delete(0, tk.END)
+
+            # Llenar listbox de alumnos asignados
+            for alumno in alumnos_asignados:
+                nombre_completo = f"{alumno[1]} {alumno[2]} {alumno[3]} (ID: {alumno[0]})"
+                listbox_asignados.insert(tk.END, nombre_completo)
+
+            # Llenar listbox de alumnos disponibles
+            for alumno in alumnos_disponibles:
+                nombre_completo = f"{alumno[1]} {alumno[2]} {alumno[3]} (ID: {alumno[0]})"
+                listbox_disponibles.insert(tk.END, nombre_completo)
+
+            conn.close()
+
+        def agregar_alumnos():
+            conn = conectar()
+            cursor = conn.cursor()
+            
+            # Verificar límite de alumnos
+            cursor.execute("SELECT max_alumnos FROM Grupos WHERE id_grupo = ?", (id_grupo,))
+            max_alumnos = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM Grupo_Alumnos WHERE id_grupo = ? AND activo = 1", (id_grupo,))
+            alumnos_actuales = cursor.fetchone()[0]
+            
+            seleccion = listbox_disponibles.curselection()
+            if not seleccion:
+                messagebox.showinfo("Error", "Por favor seleccione alumnos para agregar")
+                conn.close()
+                return
+
+            if alumnos_actuales + len(seleccion) > max_alumnos:
+                messagebox.showinfo("Error", f"No se pueden agregar más alumnos. Límite: {max_alumnos}")
+                conn.close()
+                return
+
+            fecha_actual = date.today().strftime('%Y-%m-%d')
+            
+            for index in seleccion:
+                alumno_texto = listbox_disponibles.get(index)
+                id_alumno = int(alumno_texto.split("ID: ")[-1].strip(")"))
+                
+                try:
+                    # Verificar si el alumno ya tiene conflictos de horario
+                    cursor.execute("""
+                        SELECT h.hora_inicio, h.hora_fin 
+                        FROM Grupos g
+                        JOIN Horarios h ON g.id_horario = h.id_horario
+                        WHERE g.id_grupo = ?
+                    """, (id_grupo,))
+                    horario_grupo = cursor.fetchone()
+                    
+                    cursor.execute("""
+                        SELECT h.hora_inicio, h.hora_fin 
+                        FROM Grupo_Alumnos ga
+                        JOIN Grupos g ON ga.id_grupo = g.id_grupo
+                        JOIN Horarios h ON g.id_horario = h.id_horario
+                        WHERE ga.id_alumno = ? AND ga.activo = 1
+                    """, (id_alumno,))
+                    horarios_alumno = cursor.fetchall()
+                    
+                    hay_conflicto = False
+                    for horario in horarios_alumno:
+                        if (horario_grupo[0] < horario[1] and horario_grupo[1] > horario[0]):
+                            hay_conflicto = True
+                            break
+                    
+                    if hay_conflicto:
+                        messagebox.showinfo("Error", f"El alumno con ID {id_alumno} tiene conflicto de horario")
+                        continue
+                    # Verificar si el alumno ya está en el grupo
+                    cursor.execute("SELECT COUNT(*) FROM Grupo_Alumnos WHERE id_grupo = ? AND id_alumno = ?", (id_grupo, id_alumno))
+                    if cursor.fetchone()[0] > 0:
+                        messagebox.showinfo("Error", f"El alumno con ID {id_alumno} ya está en el grupo")
+                        continue
+                    # Agregar alumno al grupo
+                    cursor.execute("""
+                        INSERT INTO Grupo_Alumnos (id_grupo, id_alumno, fecha_asignacion, activo)
+                        VALUES (?, ?, ?, 1)
+                    """, (id_grupo, id_alumno, fecha_actual))
+                    # Obtener el horario del grupo que se está agregando
+                    cursor.execute("""
+                        SELECT h.hora_inicio, h.hora_fin 
+                        FROM Grupos g
+                        JOIN Horarios h ON g.id_horario = h.id_horario
+                        WHERE g.id_grupo = ?
+                    """, (id_grupo,))
+                    horario_grupo = cursor.fetchone()
+
+                    # Actualizar el campo horarios_ocupados del alumno
+                    cursor.execute("SELECT horarios_ocupados FROM Alumnos WHERE id_alumno = ?", (id_alumno,))
+                    horarios_ocupados = cursor.fetchone()[0]
+                    if horarios_ocupados:
+                        horarios_ocupados_lista = horarios_ocupados.split(",")
+                        horarios_ocupados_lista.append(f"{horario_grupo[0]}-{horario_grupo[1]}")
+                        horarios_ocupados_nuevo = ",".join(horarios_ocupados_lista)
+                    else:
+                        horarios_ocupados_nuevo = f"{horario_grupo[0]}-{horario_grupo[1]}"
+                    cursor.execute("UPDATE Alumnos SET horarios_ocupados = ? WHERE id_alumno = ?", (horarios_ocupados_nuevo, id_alumno))
+                    # Actualizar estado de la materia como asignada
+                    cursor.execute("""
+                        UPDATE Alumno_Materias 
+                        SET asignado = 1 
+                        WHERE id_alumno = ? AND id_materia = (
+                            SELECT id_materia FROM Grupos WHERE id_grupo = ?
+                        )
+                    """, (id_alumno, id_grupo))
+                    
+                    
+                except sqlite3.IntegrityError:
+                    messagebox.showinfo("Error", f"El alumno con ID {id_alumno} ya está en el grupo")
+                    continue
+
+            conn.commit()
+            conn.close()
+            cargar_alumnos()
+
+        def quitar_alumnos():
+            conn = conectar()
+            cursor = conn.cursor()
+            
+            seleccion = listbox_asignados.curselection()
+            if not seleccion:
+                messagebox.showinfo("Error", "Por favor seleccione alumnos para quitar")
+                conn.close()
+                return
+
+            for index in seleccion:
+                alumno_texto = listbox_asignados.get(index)
+                id_alumno = int(alumno_texto.split("ID: ")[-1].strip(")"))
+                
+                # Obtener el horario del grupo que se está quitando
+                cursor.execute("""
+                    SELECT h.hora_inicio, h.hora_fin 
+                    FROM Grupos g
+                    JOIN Horarios h ON g.id_horario = h.id_horario
+                    WHERE g.id_grupo = ?
+                """, (id_grupo,))
+                horario_grupo = cursor.fetchone()
+                hora_inicio = horario_grupo[0]
+                hora_fin = horario_grupo[1]
+                
+                # Eliminar al alumno del grupo
+                cursor.execute("""
+                    DELETE FROM Grupo_Alumnos
+                    WHERE id_grupo = ? AND id_alumno = ?
+                """, (id_grupo, id_alumno))
+                
+                # Marcar la materia como no asignada
+                cursor.execute("""
+                    UPDATE Alumno_Materias 
+                    SET asignado = 0 
+                    WHERE id_alumno = ? AND id_materia = (
+                        SELECT id_materia FROM Grupos WHERE id_grupo = ?
+                    )
+                """, (id_alumno, id_grupo))
+                # Actualizar el campo horarios_ocupados del alumno
+                cursor.execute("SELECT horarios_ocupados FROM Alumnos WHERE id_alumno = ?", (id_alumno,))
+                horarios_ocupados = cursor.fetchone()[0]
+                if horarios_ocupados:
+                    horarios_ocupados_lista = horarios_ocupados.split(",")
+                    if f"{hora_inicio}-{hora_fin}" in horarios_ocupados_lista:
+                        horarios_ocupados_lista.remove(f"{hora_inicio}-{hora_fin}")
+                        horarios_ocupados_nuevo = ",".join(horarios_ocupados_lista)
+                        cursor.execute("UPDATE Alumnos SET horarios_ocupados = ? WHERE id_alumno = ?", (horarios_ocupados_nuevo, id_alumno))
+                
+                # Eliminar el alumno de la lista de alumnos asignados
+                listbox_asignados.delete(index)
+
+            conn.commit()
+            conn.close()
+            cargar_alumnos()
 
 
+
+        # Crear frames para las listas
+        frame_disponibles = ttk.LabelFrame(alumnosWindow, text="Alumnos Disponibles", padding="10")
+        frame_disponibles.grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
+
+        frame_asignados = ttk.LabelFrame(alumnosWindow, text="Alumnos Asignados", padding="10")
+        frame_asignados.grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
+
+        # Frame para botones centrales
+        frame_botones = ttk.Frame(alumnosWindow)
+        frame_botones.grid(row=0, column=1, padx=5, pady=5)
+
+        # Listboxes con scrollbars
+        listbox_disponibles = tk.Listbox(frame_disponibles, selectmode=tk.MULTIPLE, width=40, height=20)
+        scrollbar_disponibles = ttk.Scrollbar(frame_disponibles, orient="vertical", command=listbox_disponibles.yview)
+        listbox_disponibles.config(yscrollcommand=scrollbar_disponibles.set)
+        
+        listbox_asignados = tk.Listbox(frame_asignados, selectmode=tk.MULTIPLE, width=40, height=20)
+        scrollbar_asignados = ttk.Scrollbar(frame_asignados, orient="vertical", command=listbox_asignados.yview)
+        listbox_asignados.config(yscrollcommand=scrollbar_asignados.set)
+
+        # Posicionar listboxes y scrollbars
+        listbox_disponibles.pack(side="left", fill="both", expand=True)
+        scrollbar_disponibles.pack(side="right", fill="y")
+        
+        listbox_asignados.pack(side="left", fill="both", expand=True)
+        scrollbar_asignados.pack(side="right", fill="y")
+
+        # Botones de acción
+        ttk.Button(frame_botones, text=">>", command=agregar_alumnos).pack(pady=5)
+        ttk.Button(frame_botones, text="<<", command=quitar_alumnos).pack(pady=5)
+
+        # Configurar grid weights
+        alumnosWindow.grid_rowconfigure(0, weight=1)
+        alumnosWindow.grid_columnconfigure(0, weight=1)
+        alumnosWindow.grid_columnconfigure(2, weight=1)
+
+        # Cargar alumnos inicialmente
+        cargar_alumnos()
+
+        # Mantener la ventana en primer plano hasta que se cierre
+        alumnosWindow.transient(grupoWindow)
+        alumnosWindow.grab_set()
+        alumnosWindow.wait_window()
     # Crear ventana de administración de grupos
     grupoWindow = tk.Toplevel()
     grupoWindow.title("Administración de Grupos")
@@ -553,10 +823,11 @@ def createGrupoWindow():
     tk.Button(button_subframe, text="Cancelar", font=("Arial", 12), command=cancelar).pack(side="left", padx=5)
     tk.Button(button_subframe, text="Editar", font=("Arial", 12), command=editar_grupo).pack(side="left", padx=5)
     tk.Button(button_subframe, text="Baja", font=("Arial", 12), command=eliminar_grupo).pack(side="left", padx=5)
+    tk.Button(button_subframe, text="Gestionar Alumnos", font=("Arial", 12), command=gestionar_alumnos).pack(side="left", padx=5)
     cancelar()
 
 
-'''
+
 # Llamada para abrir la ventana de administración de carreras desde la ventana principal
 root = tk.Tk()
 root.geometry("250x100")  # Ajuste para que la ventana principal sea más compacta
@@ -564,4 +835,4 @@ root.geometry("250x100")  # Ajuste para que la ventana principal sea más compac
 # Botón en la ventana principal para abrir la ventana de carreras
 tk.Button(root, text="Abrir Ventana de Carreras", font=("Arial", 10), command=createGrupoWindow).pack(padx=20, pady=20)
 
-root.mainloop()'''
+root.mainloop()
