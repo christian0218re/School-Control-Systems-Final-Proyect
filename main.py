@@ -9,6 +9,7 @@ from horario import createHorarioWindow
 from Grupo import createGrupoWindow
 from pleanacion import createPlaneacionWindow
 from Salones import createClassroomWindow
+from GenerarGruposAuto import createGenerarGruposWindow
 
 def abrir_menu_principal(user_id, rol, nombre):
     menu = tk.Toplevel()
@@ -28,6 +29,7 @@ def abrir_menu_principal(user_id, rol, nombre):
     menu_admin.add_command(label="Usuarios", command=createUserWindow)
     menu_admin.add_command(label="Grupo", command=createGrupoWindow)
     menu_admin.add_command(label="Salones", command=createClassroomWindow)
+    menu_admin.add_command(label="Generar Grupos", command=createGenerarGruposWindow)
 
     menu_alumnos = tk.Menu(barra_menus, tearoff=0)
     menu_alumnos.add_command(label="Perfil", command=lambda: createStudentWindow(user_id,rol))
