@@ -32,8 +32,7 @@ def createTeacherWindow():
         try:
             # Insertar en la tabla Maestros
             cursor.execute(
-                "INSERT INTO Maestros (id_usuario, nombre, a_paterno, a_materno, correo, grado_estudio)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO Maestros (id_maestro, nombre, a_paterno, a_materno, correo, grado_estudio) VALUES (?, ?, ?, ?, ?, ?)",
                 (id_maestro, nombre, a_paterno, a_materno, correo, grado))
             conn.commit()
 
@@ -47,7 +46,7 @@ def createTeacherWindow():
 
             id_materia = resultado_materia[0]  # ID de la materia
 
-            # Insertar en la tabla materias_maestros con las llaves primarias
+            # Insertar en la tabla Maestro_Materias con las llaves primarias
             cursor.execute(
                 "INSERT INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)",
                 (id_maestro, id_materia))
@@ -90,45 +89,41 @@ def createTeacherWindow():
         usuario = cursor.fetchone()
 
         if usuario:
-            idEntry.delete(0, tk.END)
-            idEntry.insert(tk.END, usuario[1])
-
-            nameEntry.delete(0, tk.END)
-            nameEntry.insert(tk.END, usuario[2])
-
-            midName.delete(0, tk.END)
-            midName.insert(tk.END, usuario[3])
-
-            lasName.delete(0, tk.END)
-            lasName.insert(tk.END, usuario[4])
-
-            emailEntry.delete(0, tk.END)
-            emailEntry.insert(tk.END, usuario[5])
-
-            # Obtener el ID de la carrera y materia asociada al maestro
+            # Obtener la carrera y la materia asociada al maestro
             cursor.execute("""
-                SELECT c.nombre_carrera, m.nombre_materia
+                SELECT c.nombre_carrera, m.nombre_materia, maestros.grado_estudio
                 FROM Maestro_Carreras mc
                 JOIN Carreras c ON mc.id_carrera = c.id_carrera
                 JOIN Maestro_Materias mm ON mc.id_maestro = mm.id_maestro
                 JOIN Materias m ON mm.id_materia = m.id_materia
+                JOIN Maestros maestros ON maestros.id_maestro = mc.id_maestro
                 WHERE mc.id_maestro = ?
             """, (maestro_id,))
 
             resultado = cursor.fetchone()
 
+            idEntry.delete(0, tk.END)
+            idEntry.insert(tk.END, usuario[0])
+
+            nameEntry.delete(0, tk.END)
+            nameEntry.insert(tk.END, usuario[1])
+
+            midName.delete(0, tk.END)
+            midName.insert(tk.END, usuario[2])
+
+            lasName.delete(0, tk.END)
+            lasName.insert(tk.END, usuario[3])
+
+            emailEntry.delete(0, tk.END)
+            emailEntry.insert(tk.END, usuario[4])
+
             if resultado:
-                carrera, materia = resultado
-                carreraEntry.set(carrera)  # Establece la carrera en el combobox
-                materiaEntry.set(materia)  # Establece la materia en el combobox
+                carrera, materia, grado = resultado
+                carreraEntry.set(carrera)
+                materiaEntry.set(materia)
+                studyGrade.set(grado)
             else:
                 messagebox.showinfo("No Encontrado", "No se encontró carrera o materia asociada al maestro")
-
-            # Grado de estudio
-            cursor.execute("SELECT grado_estudio FROM Maestros WHERE id_maestro = ?", (maestro_id,))
-            grado = cursor.fetchone()
-            if grado:
-                studyGrade.set(grado[0])
 
             messagebox.showinfo("Éxito", "Profesor encontrado y datos llenados")
         else:
@@ -163,7 +158,7 @@ def createTeacherWindow():
         try:
             # Actualizar datos en la tabla Maestros
             cursor.execute(
-                "UPDATE Maestros SET nombre = ?, a_paterno = ?, a_materno = ?, correo = ?, grado_estudio = ? WHERE id_usuario = ?",
+                "UPDATE Maestros SET nombre = ?, a_paterno = ?, a_materno = ?, correo = ?, grado_estudio = ? WHERE id_maestro = ?",
                 (nombre, a_paterno, a_materno, correo, grado, id_maestro))
             conn.commit()
 
@@ -179,7 +174,7 @@ def createTeacherWindow():
 
             # Actualizar relación en la tabla materias_maestros
             cursor.execute(
-                "UPDATE materias_maestros SET id_materia = ? WHERE id_maestro = ?",
+                "UPDATE Maestro_Materias SET id_materia = ? WHERE id_maestro = ?",
                 (id_materia, id_maestro))
             conn.commit()
 
@@ -293,8 +288,7 @@ def createTeacherWindow():
     teacherWindow.title("Maestros")
     teacherWindow.geometry("600x450")
 
-    # Campos de entrada
-    tk.Entry(teacherWindow, text="Ingrese el codigo de maestro").grid(row=0, column=0)
+    tk.Label(teacherWindow, text="Ingrese el ID a buscar").grid(row=0, column=0)
     idSearch = tk.Entry(teacherWindow)
     idSearch.grid(row=0, column=1)
     tk.Button(teacherWindow, text='Buscar', command=buscar_profesor).grid(row=0, column=2)
@@ -320,17 +314,17 @@ def createTeacherWindow():
     emailEntry.grid(row=5, column=1)
 
     # Crear los Combobox con los valores obtenidos de las tablas de la misma base de datos
-    tk.Label(teacherWindow, text='Carrera').grid(row=3, column=3)
+    tk.Label(teacherWindow, text='Carrera').grid(row=1, column=3)
     carreraEntry = ttk.Combobox(teacherWindow, values=carreras)
-    carreraEntry.grid(row=3, column=4)
+    carreraEntry.grid(row=1, column=4)
 
-    tk.Label(teacherWindow, text='Materia').grid(row=4, column=3)
+    tk.Label(teacherWindow, text='Materia').grid(row=2, column=3)
     materiaEntry = ttk.Combobox(teacherWindow, values=materias)
-    materiaEntry.grid(row=4, column=4)
+    materiaEntry.grid(row=2, column=4)
 
-    tk.Label(teacherWindow, text='Grado de estudios').grid(row=5, column=3)
+    tk.Label(teacherWindow, text='Grado de estudios').grid(row=3, column=3)
     studyGrade = ttk.Combobox(teacherWindow, values=["Licenciatura", "Maestria", "Doctorado"])
-    studyGrade.grid(row=5, column=4)
+    studyGrade.grid(row=3, column=4)
 
     # Botones de la ventana
     tk.Button(teacherWindow, text='Nuevo', command=obtener_siguiente_id).grid(row = 6, column = 0)
