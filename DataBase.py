@@ -155,6 +155,8 @@ CREATE TABLE IF NOT EXISTS GrupoCreado (
 """
 # Ejecutar el script SQL
 cursor.executescript(script_sql)
+
+#Para restablecer la base de datos descomenta todo lo de abajo pero primero elimina la DataBase.db
 """
 prueba =cursor.execute("SELECT COUNT(*) FROM GrupoCreado WHERE grupo = 1")
 

@@ -846,7 +846,7 @@ def createGrupoWindow():
     cancelar()
 
 
-
+"""
 # Llamada para abrir la ventana de administración de carreras desde la ventana principal
 root = tk.Tk()
 root.geometry("250x100")  # Ajuste para que la ventana principal sea más compacta
@@ -855,3 +855,4 @@ root.geometry("250x100")  # Ajuste para que la ventana principal sea más compac
 tk.Button(root, text="Abrir Ventana de Carreras", font=("Arial", 10), command=createGrupoWindow).pack(padx=20, pady=20)
 
 root.mainloop()
+"""
