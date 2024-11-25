@@ -14,12 +14,12 @@ def createTeacherWindow():
         a_materno = lasName.get()
         correo = emailEntry.get()
         carrera = carreraEntry.get()  # Nombre de la carrera seleccionada en la interfaz
-        materia = materiaEntry.get()  # Nombre de la materia seleccionada en la interfaz
+        materias_seleccionadas = [materiaListbox.get(i) for i in materiaListbox.curselection()]
         grado = studyGrade.get()
 
         # Validación de campos vacíos
         if not (
-                id_maestro and nombre and a_paterno and a_materno and correo and carrera and materia and grado):
+                id_maestro and nombre and a_paterno and a_materno and correo and carrera and materias_seleccionadas and grado):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
@@ -34,22 +34,6 @@ def createTeacherWindow():
             cursor.execute(
                 "INSERT INTO Maestros (id_maestro, nombre, a_paterno, a_materno, correo, grado_estudio) VALUES (?, ?, ?, ?, ?, ?)",
                 (id_maestro, nombre, a_paterno, a_materno, correo, grado))
-            conn.commit()
-
-            # Obtener el ID de la materia basada en el nombre
-            cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = ?", (materia,))
-            resultado_materia = cursor.fetchone()
-
-            if resultado_materia is None:
-                messagebox.showinfo("Error", "La materia seleccionada no existe en la base de datos")
-                return
-
-            id_materia = resultado_materia[0]  # ID de la materia
-
-            # Insertar en la tabla Maestro_Materias con las llaves primarias
-            cursor.execute(
-                "INSERT INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)",
-                (id_maestro, id_materia))
             conn.commit()
 
             # Obtener el ID de la carrera basada en el nombre
@@ -68,7 +52,23 @@ def createTeacherWindow():
                 (id_maestro, id_carrera))
             conn.commit()
 
-            messagebox.showinfo("Éxito", "Maestro, materia y carrera registrados correctamente")
+            # Insertar en la tabla Maestro_Materias para cada materia seleccionada
+            for materia in materias_seleccionadas:
+                cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = ?", (materia,))
+                resultado_materia = cursor.fetchone()
+
+                if resultado_materia is None:
+                    messagebox.showinfo("Error", f"La materia '{materia}' no existe en la base de datos")
+                    continue
+
+                id_materia = resultado_materia[0]  # ID de la materia
+
+                cursor.execute(
+                    "INSERT INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)",
+                    (id_maestro, id_materia))
+                conn.commit()
+
+            messagebox.showinfo("Éxito", "Maestro, materias y carrera registrados correctamente")
             limpiar_campos()
 
         except Exception as e:
@@ -79,57 +79,70 @@ def createTeacherWindow():
     def buscar_profesor():
         conn = conectar()
         cursor = conn.cursor()
-        maestro_id = idSearch.get()
 
-        if not maestro_id:
-            messagebox.showinfo("Error", "Por favor ingrese un ID de usuario")
+        id_maestro = idSearch.get()  # Obtenemos el ID del maestro desde la interfaz
+
+        if not id_maestro:
+            messagebox.showinfo("Error", "Por favor ingrese un ID de maestro")
             return
 
-        cursor.execute("SELECT * FROM Maestros WHERE id_maestro = ?", (maestro_id,))
-        usuario = cursor.fetchone()
-
-        if usuario:
-            # Obtener la carrera y la materia asociada al maestro
-            cursor.execute("""
-                SELECT c.nombre_carrera, m.nombre_materia, maestros.grado_estudio
-                FROM Maestro_Carreras mc
+        try:
+            # Consultar los detalles del maestro y su carrera desde la tabla Maestros
+            cursor.execute(
+                """
+                SELECT m.nombre, m.a_paterno, m.a_materno, m.correo, m.grado_estudio, c.nombre_carrera
+                FROM Maestros m
+                JOIN Maestro_Carreras mc ON m.id_maestro = mc.id_maestro
                 JOIN Carreras c ON mc.id_carrera = c.id_carrera
-                JOIN Maestro_Materias mm ON mc.id_maestro = mm.id_maestro
-                JOIN Materias m ON mm.id_materia = m.id_materia
-                JOIN Maestros maestros ON maestros.id_maestro = mc.id_maestro
-                WHERE mc.id_maestro = ?
-            """, (maestro_id,))
+                WHERE m.id_maestro = ?
+                """,
+                (id_maestro,)
+            )
+            maestro = cursor.fetchone()
 
-            resultado = cursor.fetchone()
+            if maestro:
+                # Rellenar los campos con los datos del maestro obtenidos
+                idEntry.delete(0, tk.END)
+                idEntry.insert(tk.END, id_maestro)
+                nameEntry.delete(0, tk.END)
+                nameEntry.insert(tk.END, maestro[0])
+                midName.delete(0, tk.END)
+                midName.insert(tk.END, maestro[1])
+                lasName.delete(0, tk.END)
+                lasName.insert(tk.END, maestro[2])
+                emailEntry.delete(0, tk.END)
+                emailEntry.insert(tk.END, maestro[3])
+                studyGrade.set(maestro[4])
+                carreraEntry.set(maestro[5])
 
-            idEntry.delete(0, tk.END)
-            idEntry.insert(tk.END, usuario[0])
+                # Consultar las materias asociadas al maestro desde la tabla Maestro_Materias
+                cursor.execute(
+                    """
+                    SELECT ma.nombre_materia
+                    FROM Materias ma
+                    JOIN Maestro_Materias mm ON ma.id_materia = mm.id_materia
+                    WHERE mm.id_maestro = ?
+                    """,
+                    (id_maestro,)
+                )
+                materias_asociadas = [row[0] for row in cursor.fetchall()]
 
-            nameEntry.delete(0, tk.END)
-            nameEntry.insert(tk.END, usuario[1])
+                # Limpiar la lista de materias y seleccionar las asociadas
+                materiaListbox.selection_clear(0, tk.END)
+                for index in range(materiaListbox.size()):
+                    materia = materiaListbox.get(index)
+                    if materia in materias_asociadas:
+                        materiaListbox.select_set(index)
 
-            midName.delete(0, tk.END)
-            midName.insert(tk.END, usuario[2])
-
-            lasName.delete(0, tk.END)
-            lasName.insert(tk.END, usuario[3])
-
-            emailEntry.delete(0, tk.END)
-            emailEntry.insert(tk.END, usuario[4])
-
-            if resultado:
-                carrera, materia, grado = resultado
-                carreraEntry.set(carrera)
-                materiaEntry.set(materia)
-                studyGrade.set(grado)
+                messagebox.showinfo("Maestro Encontrado",
+                                    f"Maestro con ID '{id_maestro}' encontrado y campos llenados.")
             else:
-                messagebox.showinfo("No Encontrado", "No se encontró carrera o materia asociada al maestro")
+                messagebox.showinfo("No Encontrado", "No se encontró un maestro con ese ID")
 
-            messagebox.showinfo("Éxito", "Profesor encontrado y datos llenados")
-        else:
-            messagebox.showinfo("No Encontrado", "No se encontró un profesor con ese ID")
-
-        conn.close()
+        except Exception as e:
+            messagebox.showinfo("Error", str(e))
+        finally:
+            conn.close()
 
     def editar_maestro():
         conn = conectar()
@@ -141,7 +154,7 @@ def createTeacherWindow():
         a_materno = lasName.get()
         correo = emailEntry.get()
         carrera = carreraEntry.get()  # Carrera seleccionada en la interfaz
-        materia = materiaEntry.get()  # Materia seleccionada en la interfaz
+        materia = materiaListbox.get()  # Materia seleccionada en la interfaz
         grado = studyGrade.get()
 
         # Validación de campos vacíos
@@ -231,8 +244,7 @@ def createTeacherWindow():
         midName.delete(0, tk.END)
         lasName.delete(0, tk.END)
         emailEntry.delete(0, tk.END)
-        materiaEntry.delete(0, tk.END)
-        materiaEntry.set("")
+        materiaListbox.selection_clear(0, tk.END)
         carreraEntry.set("")
         studyGrade.set("")
 
@@ -253,6 +265,7 @@ def createTeacherWindow():
         # Mostrar el siguiente ID en el campo idEntry
         idEntry.delete(0, tk.END)
         idEntry.insert(0, siguiente_id)
+
     def obtener_datos_carrera_y_materia():
         conn = conectar()
         if conn is None:
@@ -286,7 +299,7 @@ def createTeacherWindow():
     # Crear la ventana
     teacherWindow = tk.Tk()
     teacherWindow.title("Maestros")
-    teacherWindow.geometry("600x450")
+    teacherWindow.geometry("600x500")
 
     tk.Label(teacherWindow, text="Ingrese el ID a buscar").grid(row=0, column=0)
     idSearch = tk.Entry(teacherWindow)
@@ -318,16 +331,18 @@ def createTeacherWindow():
     carreraEntry = ttk.Combobox(teacherWindow, values=carreras)
     carreraEntry.grid(row=1, column=4)
 
-    tk.Label(teacherWindow, text='Materia').grid(row=2, column=3)
-    materiaEntry = ttk.Combobox(teacherWindow, values=materias)
-    materiaEntry.grid(row=2, column=4)
+    tk.Label(teacherWindow, text='Materias').grid(row=2, column=3)
+    materiaListbox = tk.Listbox(teacherWindow, selectmode=tk.MULTIPLE, height=6)  # Cambiado a Listbox con selección múltiple
+    for materia in materias:
+        materiaListbox.insert(tk.END, materia)
+    materiaListbox.grid(row=2, column=4)
 
     tk.Label(teacherWindow, text='Grado de estudios').grid(row=3, column=3)
     studyGrade = ttk.Combobox(teacherWindow, values=["Licenciatura", "Maestria", "Doctorado"])
     studyGrade.grid(row=3, column=4)
 
     # Botones de la ventana
-    tk.Button(teacherWindow, text='Nuevo', command=obtener_siguiente_id).grid(row = 6, column = 0)
+    tk.Button(teacherWindow, text='Nuevo', command=obtener_siguiente_id).grid(row=6, column=0)
     tk.Button(teacherWindow, text='Guardar', command=agregar_maestro).grid(row=6, column=1)
     tk.Button(teacherWindow, text='Cancelar', command=limpiar_campos).grid(row=6, column=2)
     tk.Button(teacherWindow, text='Editar', command=editar_maestro).grid(row=6, column=3)

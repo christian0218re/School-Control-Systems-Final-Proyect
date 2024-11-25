@@ -82,7 +82,7 @@ def login(event=None):
 
 
 root = tk.Tk()
-root.title("Login - Farmacia CUCEI")
+root.title("Login - Sistema de Control Escolar")
 root.geometry("300x200")
 
 tk.Label(root, text="Correo:").pack(pady=10)

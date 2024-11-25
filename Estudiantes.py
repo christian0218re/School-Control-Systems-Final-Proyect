@@ -6,9 +6,8 @@ import re
 
 studentWindow = None
 
-def createStudentWindow(idUsuario,rol):
+def createStudentWindow(idUsuario, rol):
     id_usuario = idUsuario
-
 
     def procesarAlumno(id_usuario):
         if validarRolAlumno(id_usuario):
@@ -17,7 +16,6 @@ def createStudentWindow(idUsuario,rol):
                 buscar_alumno(id_usuario)
             else:
                 buscar_alumno(id_usuario)
-
 
     def agregar_estudiante():
         conn = conectar()
@@ -31,10 +29,9 @@ def createStudentWindow(idUsuario,rol):
         estado = stateEntry.get()
         fechaNac = birthEntry.get()
         carrera = careerEntry.get()
-        materia = subEntry.get()
 
         # Verificar que todos los campos están completos
-        if not (id_estudiante and nombre and a_paterno and a_materno and email and estado and fechaNac and carrera and materia):
+        if not (id_estudiante and nombre and a_paterno and a_materno and email and estado and fechaNac and carrera):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
@@ -53,12 +50,28 @@ def createStudentWindow(idUsuario,rol):
         # Intentar agregar el estudiante
         try:
             cursor.execute(
-                "INSERT INTO Alumnos (id_alumno, nombre, fecha_nacimiento, A_paterno, A_materno, carrera, estado, correo)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (id_estudiante, nombre, fechaNac, a_paterno, a_materno, carrera, estado, email)
+                "INSERT INTO Alumnos (id_alumno, nombre, fecha_nacimiento, A_paterno, A_materno, carrera, estado, correo, id_usuario) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (id_estudiante, nombre, fechaNac, a_paterno, a_materno, carrera, estado, email, id_usuario)
+                # Aseguramos que id_usuario se inserte
             )
             conn.commit()
-            messagebox.showinfo("Éxito", "Alumno registrado correctamente")
+
+            # Obtener el ID del alumno recién agregado
+            cursor.execute("SELECT id_alumno FROM Alumnos WHERE correo = ?", (email,))
+            id_alumno = cursor.fetchone()[0]
+
+            # Agregar las materias seleccionadas a la tabla Alumno_Materias
+            materias_seleccionadas = materiaListbox.curselection()
+            for index in materias_seleccionadas:
+                id_materia = index + 1  # Suponiendo que los IDs de materias son índices + 1
+                cursor.execute(
+                    "INSERT INTO Alumno_Materias (id_alumno, id_materia) VALUES (?, ?)",
+                    (id_alumno, id_materia)
+                )
+            conn.commit()
+
+            messagebox.showinfo("Éxito", "Alumno registrado correctamente y materias agregadas")
             limpiar_campos()
 
         except Exception as e:
@@ -93,6 +106,24 @@ def createStudentWindow(idUsuario,rol):
             stateEntry.insert(tk.END, alumno[6])
             emailEntry.delete(0, tk.END)
             emailEntry.insert(tk.END, alumno[7])
+
+            # Limpiar el Listbox antes de agregar las materias
+            materiaListbox.selection_clear(0, tk.END)
+
+            # Obtener las materias asociadas al alumno
+            cursor.execute("""
+                SELECT M.nombre_materia FROM Materias M
+                JOIN Alumno_Materias AM ON AM.id_materia = M.id_materia
+                WHERE AM.id_alumno = ?
+            """, (estudiante_id,))
+            materias_alumno = cursor.fetchall()
+
+            # Marcar las materias seleccionadas en el Listbox
+            for materia in materias_alumno:
+                materia_nombre = materia[0]
+                index = materiaListbox.get(0, tk.END).index(materia_nombre)
+                materiaListbox.selection_set(index)
+
             messagebox.showinfo("Éxito", "Alumno encontrado y datos llenados")
         else:
             messagebox.showinfo("No Encontrado", "No se encontró un alumno con ese ID")
@@ -129,18 +160,33 @@ def createStudentWindow(idUsuario,rol):
             return
 
         try:
-            cursor.execute("UPDATE Alumnos SET nombre = ?, fecha_nacimiento = ?, A_paterno = ?, A_materno = ?, carrera = ?, estado = ?, correo = ? WHERE id_alumno = ?",
-                        (nombre, fechaNac, a_paterno, a_materno, carrera, estado, email, id_estudiante))
+            cursor.execute(
+                "UPDATE Alumnos SET nombre = ?, fecha_nacimiento = ?, A_paterno = ?, A_materno = ?, carrera = ?, estado = ?, correo = ? WHERE id_alumno = ?",
+                (nombre, fechaNac, a_paterno, a_materno, carrera, estado, email, id_estudiante))
             conn.commit()
-            messagebox.showinfo("Éxito", "Alumno actualizado correctamente")
-            if(rol!="alumno"):
+
+            # Limpiar las materias existentes en Alumno_Materias
+            cursor.execute("DELETE FROM Alumno_Materias WHERE id_alumno = ?", (id_estudiante,))
+            conn.commit()
+
+            # Agregar las nuevas materias seleccionadas a la tabla Alumno_Materias
+            materias_seleccionadas = materiaListbox.curselection()
+            for index in materias_seleccionadas:
+                id_materia = index + 1  # Suponiendo que los IDs de materias son índices + 1
+                cursor.execute(
+                    "INSERT INTO Alumno_Materias (id_alumno, id_materia) VALUES (?, ?)",
+                    (id_estudiante, id_materia)
+                )
+            conn.commit()
+
+            messagebox.showinfo("Éxito", "Alumno actualizado correctamente y materias actualizadas")
+            if (rol != "alumno"):
                 limpiar_campos()
 
         except Exception as e:
             messagebox.showinfo("Error", str(e))
         finally:
             conn.close()
-
 
     def eliminar_estudiante():
         conn = conectar()
@@ -156,6 +202,10 @@ def createStudentWindow(idUsuario,rol):
             return
 
         try:
+            # Eliminar las materias asociadas al alumno
+            cursor.execute("DELETE FROM Alumno_Materias WHERE id_alumno = ?", (id_estudiante,))
+            conn.commit()
+
             cursor.execute("DELETE FROM Alumnos WHERE id_alumno = ?", (id_estudiante,))
             conn.commit()
             messagebox.showinfo("Éxito", "Alumno eliminado correctamente")
@@ -174,15 +224,7 @@ def createStudentWindow(idUsuario,rol):
         stateEntry.delete(0, tk.END)
         birthEntry.set_date("2000-01-01")
         careerEntry.set("")
-        subEntry.set("")
-
-    def obtener_datos(query):
-        conn = conectar()
-        cursor = conn.cursor()
-        cursor.execute(query)
-        data = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        return data
+        materiaListbox.selection_clear(0, tk.END)  # Limpiar selección del Listbox
 
     def obtener_siguiente_id():
         conn = conectar()
@@ -202,62 +244,93 @@ def createStudentWindow(idUsuario,rol):
         idEntry.delete(0, tk.END)
         idEntry.insert(0, siguiente_id)
 
+    def obtener_datos(query):
+        conn = conectar()
+        cursor = conn.cursor()
+        cursor.execute(query)
+        data = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return data
+
+    # Creación de la interfaz gráfica
+    global studentWindow
     studentWindow = tk.Toplevel()
     studentWindow.title("Gestión de Estudiantes")
-    studentWindow.geometry("600x500")
 
-    tk.Label(studentWindow, text="Ingrese código de alumno").grid(row=1, column=0)
+    # Fila de búsqueda por ID de estudiante
+    labelBusqueda = tk.Label(studentWindow, text="Buscar por ID de Estudiante:")
+    labelBusqueda.grid(row=0, column=0, padx=10, pady=10)
+
     idEntryBusqueda = tk.Entry(studentWindow)
-    idEntryBusqueda.grid(row=1, column=1)
-    tk.Button(studentWindow, text='Buscar', command=buscar_estudiante).grid(row=1, column=2)
+    idEntryBusqueda.grid(row=0, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='ID').grid(row=3, column=0)
+    buscarButton = tk.Button(studentWindow, text="Buscar", command=buscar_estudiante)
+    buscarButton.grid(row=0, column=2, padx=10, pady=10)
+
+    # Labels y Entradas para los campos
+    tk.Label(studentWindow, text="ID Estudiante:").grid(row=1, column=0, padx=10, pady=10)
     idEntry = tk.Entry(studentWindow)
-    idEntry.grid(row=3, column=1)
+    idEntry.grid(row=1, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='Nombre').grid(row=4, column=0)
+    tk.Label(studentWindow, text="Nombre:").grid(row=2, column=0, padx=10, pady=10)
     nameEntry = tk.Entry(studentWindow)
-    nameEntry.grid(row=4, column=1)
+    nameEntry.grid(row=2, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='A. Paterno').grid(row=5, column=0)
+    tk.Label(studentWindow, text="Apellido Paterno:").grid(row=3, column=0, padx=10, pady=10)
     midNameEntry = tk.Entry(studentWindow)
-    midNameEntry.grid(row=5, column=1)
+    midNameEntry.grid(row=3, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='A. Materno').grid(row=6, column=0)
+    tk.Label(studentWindow, text="Apellido Materno:").grid(row=4, column=0, padx=10, pady=10)
     lasNameEntry = tk.Entry(studentWindow)
-    lasNameEntry.grid(row=6, column=1)
+    lasNameEntry.grid(row=4, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='Email').grid(row=7, column=0)
+    tk.Label(studentWindow, text="Correo:").grid(row=5, column=0, padx=10, pady=10)
     emailEntry = tk.Entry(studentWindow)
-    emailEntry.grid(row=7, column=1)
+    emailEntry.grid(row=5, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='Estado').grid(row=3, column=3)
+    tk.Label(studentWindow, text="Estado:").grid(row=6, column=0, padx=10, pady=10)
     stateEntry = tk.Entry(studentWindow)
-    stateEntry.grid(row=3, column=4)
+    stateEntry.grid(row=6, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='Fecha Nac').grid(row=4, column=3)
+    tk.Label(studentWindow, text="Fecha de Nacimiento:").grid(row=7, column=0, padx=10, pady=10)
     birthEntry = DateEntry(studentWindow, date_pattern='yyyy-mm-dd')
-    birthEntry.grid(row=4, column=4)
+    birthEntry.grid(row=7, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='Carrera').grid(row=5, column=3)
-    career_data = obtener_datos("SELECT nombre_carrera FROM Carreras")
-    careerEntry = ttk.Combobox(studentWindow, values=career_data)
-    careerEntry.grid(row=5, column=4)
+    tk.Label(studentWindow, text="Carrera:").grid(row=8, column=0, padx=10, pady=10)
+    careerEntry = ttk.Combobox(studentWindow)
+    careerEntry.grid(row=8, column=1, padx=10, pady=10)
 
-    tk.Label(studentWindow, text='Materia').grid(row=6, column=3)
-    subject_data = obtener_datos("SELECT nombre_materia FROM Materias")
-    subEntry = ttk.Combobox(studentWindow, values=subject_data)
-    subEntry.grid(row=6, column=4)
+    tk.Label(studentWindow, text="Materias:").grid(row=9, column=0, padx=10, pady=10)
+    materiaListbox = tk.Listbox(studentWindow, selectmode=tk.MULTIPLE)
+    materiaListbox.grid(row=9, column=1, padx=10, pady=10)
 
-    if (rol!="alumno"):
+    # Cargar las carreras y materias desde la base de datos
+    careerList = obtener_datos("SELECT nombre_carrera FROM Carreras")
+    careerEntry['values'] = careerList
 
-        tk.Button(studentWindow, text="Nuevo", command=obtener_siguiente_id).grid(row=9, column=1)
-        tk.Button(studentWindow, text="Guardar", command=agregar_estudiante).grid(row=9, column=2)
-        tk.Button(studentWindow, text="Cancelar", command=limpiar_campos).grid(row=9, column=3)
-        tk.Button(studentWindow, text="Editar", command=editar_estudiante).grid(row=9, column=4)
-        tk.Button(studentWindow, text="Baja", command=eliminar_estudiante).grid(row=9, column=5)
-    else:
-        tk.Button(studentWindow, text="Guardar Cambios", command=editar_estudiante).grid(row=9, column=4)
+    materiaList = obtener_datos("SELECT nombre_materia FROM Materias")
+    for materia in materiaList:
+        materiaListbox.insert(tk.END, materia)
+
+    # Botones de acción
+    agregarButton = tk.Button(studentWindow, text="Agregar Estudiante", command=agregar_estudiante)
+    agregarButton.grid(row=10, column=0, padx=10, pady=10)
+
+    editarButton = tk.Button(studentWindow, text="Editar Estudiante", command=editar_estudiante)
+    editarButton.grid(row=10, column=1, padx=10, pady=10)
+
+    nuevoBoton = tk.Button(studentWindow, text="Nuevo", command=obtener_siguiente_id)
+    nuevoBoton.grid(row=10, column=2, padx=10, pady=10)
+
+    eliminarButton = tk.Button(studentWindow, text="Eliminar Estudiante", command=eliminar_estudiante)
+    eliminarButton.grid(row=10, column=3, padx=10, pady=10)
+
+    limpiarButton = tk.Button(studentWindow, text="Limpiar Campos", command=limpiar_campos)
+    limpiarButton.grid(row=11, column=0, padx=10, pady=10)
+
+    studentWindow.mainloop()
+
+    studentWindow.geometry("600x400")
 
     def validarRolAlumno(id_usuario):
         conn = conectar()
@@ -275,7 +348,7 @@ def createStudentWindow(idUsuario,rol):
 
         finally:
             conn.close()
-            
+
         return True
 
     def validarAlumno(id_usuario):
@@ -308,12 +381,11 @@ def createStudentWindow(idUsuario,rol):
         conn = conectar()
         cursor = conn.cursor()
 
-
         cursor.execute("SELECT * FROM Alumnos WHERE id_usuario = ?", (id_usuario,))
         alumno = cursor.fetchone()
 
         if alumno:
-            if(alumno[6]==None):
+            if (alumno[6] == None):
                 idEntry.insert(tk.END, alumno[0])
                 nameEntry.insert(tk.END, alumno[1])
                 birthEntry.set_date(alumno[2])
@@ -348,7 +420,7 @@ def createStudentWindow(idUsuario,rol):
 
         try:
             cursor.execute(
-                "SELECT nombre, a_paterno, a_materno, correo FROM Usuarios WHERE id_usuario = ?", 
+                "SELECT nombre, a_paterno, a_materno, correo FROM Usuarios WHERE id_usuario = ?",
                 (id_usuario,)
             )
             usuario = cursor.fetchone()
@@ -371,10 +443,10 @@ def createStudentWindow(idUsuario,rol):
             for id_ in ids_existentes:
                 if id_ == siguiente_id:
                     siguiente_id += 1
-            
+
             cursor.execute(
                 "INSERT INTO Alumnos (id_alumno,nombre, a_paterno, a_materno, correo, id_usuario) VALUES (?,?, ?, ?, ?,?)",
-                (siguiente_id,nombre, a_paterno, a_materno, correo,id_usuario)
+                (siguiente_id, nombre, a_paterno, a_materno, correo, id_usuario)
             )
             conn.commit()
             messagebox.showinfo("Éxito", "Alumno registrado correctamente.")
