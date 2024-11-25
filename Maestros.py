@@ -154,11 +154,11 @@ def createTeacherWindow():
         a_materno = lasName.get()
         correo = emailEntry.get()
         carrera = carreraEntry.get()  # Carrera seleccionada en la interfaz
-        materia = materiaListbox.get()  # Materia seleccionada en la interfaz
+        materias_seleccionadas = [materiaListbox.get(i) for i in materiaListbox.curselection()]
         grado = studyGrade.get()
 
         # Validación de campos vacíos
-        if not (id_maestro and nombre and a_paterno and a_materno and correo and carrera and materia and grado):
+        if not (id_maestro and nombre and a_paterno and a_materno and correo and carrera and materias_seleccionadas and grado):
             messagebox.showinfo("Error", "Por favor, rellene todos los campos")
             return
 
@@ -173,22 +173,6 @@ def createTeacherWindow():
             cursor.execute(
                 "UPDATE Maestros SET nombre = ?, a_paterno = ?, a_materno = ?, correo = ?, grado_estudio = ? WHERE id_maestro = ?",
                 (nombre, a_paterno, a_materno, correo, grado, id_maestro))
-            conn.commit()
-
-            # Obtener el ID de la materia basada en el nombre
-            cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = ?", (materia,))
-            resultado_materia = cursor.fetchone()
-
-            if resultado_materia is None:
-                messagebox.showinfo("Error", "La materia seleccionada no existe en la base de datos")
-                return
-
-            id_materia = resultado_materia[0]  # ID de la materia
-
-            # Actualizar relación en la tabla materias_maestros
-            cursor.execute(
-                "UPDATE Maestro_Materias SET id_materia = ? WHERE id_maestro = ?",
-                (id_materia, id_maestro))
             conn.commit()
 
             # Obtener el ID de la carrera basada en el nombre
@@ -207,7 +191,24 @@ def createTeacherWindow():
                 (id_carrera, id_maestro))
             conn.commit()
 
-            messagebox.showinfo("Éxito", "Datos del maestro, materia y carrera actualizados correctamente")
+            # Actualizar relación en la tabla Maestro_Materias para cada materia seleccionada
+            cursor.execute("DELETE FROM Maestro_Materias WHERE id_maestro = ?", (id_maestro,))
+            for materia in materias_seleccionadas:
+                cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = ?", (materia,))
+                resultado_materia = cursor.fetchone()
+
+                if resultado_materia is None:
+                    messagebox.showinfo("Error", f"La materia '{materia}' no existe en la base de datos")
+                    continue
+
+                id_materia = resultado_materia[0]  # ID de la materia
+
+                cursor.execute(
+                    "INSERT INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)",
+                    (id_maestro, id_materia))
+                conn.commit()
+
+            messagebox.showinfo("Éxito", "Datos del maestro, materias y carrera actualizados correctamente")
             limpiar_campos()
 
         except Exception as e:
@@ -224,17 +225,36 @@ def createTeacherWindow():
             messagebox.showinfo("Error", "Por favor, busque un profesor para eliminar")
             return
 
-        confirmacion = messagebox.askyesno("Confirmación", "¿Estás seguro de que deseas eliminar este profesor?")
+        confirmacion = messagebox.askyesno("Confirmación",
+                                           "¿Estás seguro de que deseas eliminar este profesor y sus asociaciones?")
         if not confirmacion:
             return
 
         try:
-            cursor.execute("DELETE FROM Maestros WHERE id_maestro = ?", (id_maestro,))
-            conn.commit()
-            messagebox.showinfo("Éxito", "Profesor eliminado correctamente")
-            limpiar_campos()
-        except Exception as e:
-            messagebox.showinfo("Error", str(e))
+            # Buscar los grupos asociados al maestro
+            cursor.execute("SELECT id_grupo FROM Grupos WHERE id_maestro = ?", (id_maestro,))
+            grupos = cursor.fetchall()
+
+            for grupo in grupos:
+                id_grupo = grupo[0]
+
+                try:
+                    conexion = conectar()
+                    cursor = conexion.cursor()
+
+                    # Eliminar registros relacionados en cascada
+                    cursor.execute(
+                        "DELETE FROM Alumnos_Grupos WHERE id_grupo IN (SELECT id_grupo FROM Grupos WHERE id_maestro = ?)",
+                        (id_maestro,))
+                    cursor.execute("DELETE FROM Grupos WHERE id_maestro = ?", (id_maestro,))
+                    cursor.execute("DELETE FROM Profesores WHERE id_maestro = ?", (id_maestro,))
+
+                    conexion.commit()
+                    conexion.close()
+
+                    messagebox.showinfo("Éxito","El profesor y sus registros relacionados fueron eliminados correctamente.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Ocurrió un error al eliminar al profesor: {e}")
         finally:
             conn.close()
 
@@ -244,108 +264,89 @@ def createTeacherWindow():
         midName.delete(0, tk.END)
         lasName.delete(0, tk.END)
         emailEntry.delete(0, tk.END)
+        carreraEntry.set('')
         materiaListbox.selection_clear(0, tk.END)
-        carreraEntry.set("")
-        studyGrade.set("")
+        studyGrade.set('')
+        idSearch.delete(0, tk.END)
 
-    def obtener_siguiente_id():
-        conn = conectar()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id_maestro FROM Maestros ORDER BY id_maestro")
-        ids_existentes = [row[0] for row in cursor.fetchall()]
-        conn.close()
-
-        # Encontrar el primer ID faltante en la secuencia
-        siguiente_id = 1
-        for id_ in ids_existentes:
-            if id_ == siguiente_id:
-                siguiente_id += 1
-            else:
-                break
-        # Mostrar el siguiente ID en el campo idEntry
-        idEntry.delete(0, tk.END)
-        idEntry.insert(0, siguiente_id)
-
-    def obtener_datos_carrera_y_materia():
-        conn = conectar()
-        if conn is None:
-            return [], []  # Retorna listas vacías si la conexión falla
-
-        cursor = conn.cursor()
-
-        # Obtener los datos de las tablas
-        try:
-            cursor.execute("SELECT nombre_carrera FROM Carreras")  # Consulta para la tabla de carreras
-            carreras = [row[0] for row in cursor.fetchall()]
-
-            cursor.execute("SELECT nombre_materia FROM Materias")  # Consulta para la tabla de materias
-            materias = [row[0] for row in cursor.fetchall()]
-
-            conn.close()
-            return carreras, materias
-        except Exception as e:
-            print(f"Error en la consulta SQL: {e}")
-            conn.close()
-            return [], []  # Retorna listas vacías en caso de error en la consulta
-
-    # Obtener los datos de ambas tablas
-    carreras, materias = obtener_datos_carrera_y_materia()
-
-    # Verificar si se obtuvieron datos
-    if not carreras or not materias:
-        print("No se pudieron cargar los datos para los comboboxes.")
-        return
-
-    # Crear la ventana
+    # Configuración de la ventana principal
     teacherWindow = tk.Tk()
-    teacherWindow.title("Maestros")
-    teacherWindow.geometry("600x500")
+    teacherWindow.title("Gestión de Maestros")
+    teacherWindow.geometry("600x600")
 
-    tk.Label(teacherWindow, text="Ingrese el ID a buscar").grid(row=0, column=0)
+    # ID del maestro para búsquedas
+    tk.Label(teacherWindow, text="ID de Maestro:").grid(row=0, column=0)
     idSearch = tk.Entry(teacherWindow)
     idSearch.grid(row=0, column=1)
-    tk.Button(teacherWindow, text='Buscar', command=buscar_profesor).grid(row=0, column=2)
 
-    tk.Label(teacherWindow, text="ID").grid(row=1, column=0)
-    idEntry = tk.Entry(teacherWindow)  # Crear el widget
-    idEntry.grid(row=1, column=1)  # Ubicar en la cuadrícula
+    tk.Button(teacherWindow, text="Buscar", command=buscar_profesor).grid(row=0, column=2)
 
-    tk.Label(teacherWindow, text="Nombre").grid(row=2, column=0)
+    # Información del maestro
+    tk.Label(teacherWindow, text="ID del Maestro:").grid(row=1, column=0)
+    idEntry = tk.Entry(teacherWindow)
+    idEntry.grid(row=1, column=1)
+
+    tk.Label(teacherWindow, text="Nombre:").grid(row=2, column=0)
     nameEntry = tk.Entry(teacherWindow)
     nameEntry.grid(row=2, column=1)
 
-    tk.Label(teacherWindow, text="A. Paterno").grid(row=3, column=0)
+    tk.Label(teacherWindow, text="Apellido Paterno:").grid(row=3, column=0)
     midName = tk.Entry(teacherWindow)
     midName.grid(row=3, column=1)
 
-    tk.Label(teacherWindow, text="A. Materno").grid(row=4, column=0)
+    tk.Label(teacherWindow, text="Apellido Materno:").grid(row=4, column=0)
     lasName = tk.Entry(teacherWindow)
     lasName.grid(row=4, column=1)
 
-    tk.Label(teacherWindow, text="Email").grid(row=5, column=0)
+    tk.Label(teacherWindow, text="Correo Electrónico:").grid(row=5, column=0)
     emailEntry = tk.Entry(teacherWindow)
     emailEntry.grid(row=5, column=1)
 
-    # Crear los Combobox con los valores obtenidos de las tablas de la misma base de datos
-    tk.Label(teacherWindow, text='Carrera').grid(row=1, column=3)
-    carreraEntry = ttk.Combobox(teacherWindow, values=carreras)
-    carreraEntry.grid(row=1, column=4)
+    tk.Label(teacherWindow, text="Carrera:").grid(row=6, column=0)
+    carreraEntry = ttk.Combobox(teacherWindow)
+    carreraEntry.grid(row=6, column=1)
 
-    tk.Label(teacherWindow, text='Materias').grid(row=2, column=3)
-    materiaListbox = tk.Listbox(teacherWindow, selectmode=tk.MULTIPLE, height=6)  # Cambiado a Listbox con selección múltiple
-    for materia in materias:
-        materiaListbox.insert(tk.END, materia)
-    materiaListbox.grid(row=2, column=4)
+    tk.Label(teacherWindow, text="Materias:").grid(row=7, column=0)
+    materiaListbox = tk.Listbox(teacherWindow, selectmode=tk.MULTIPLE)
+    materiaListbox.grid(row=7, column=1)
 
-    tk.Label(teacherWindow, text='Grado de estudios').grid(row=3, column=3)
-    studyGrade = ttk.Combobox(teacherWindow, values=["Licenciatura", "Maestria", "Doctorado"])
-    studyGrade.grid(row=3, column=4)
+    tk.Label(teacherWindow, text="Grado de Estudios:").grid(row=8, column=0)
+    studyGrade = ttk.Combobox(teacherWindow, values=["Licenciatura", "Maestría", "Doctorado"])
+    studyGrade.grid(row=8, column=1)
 
-    # Botones de la ventana
-    tk.Button(teacherWindow, text='Nuevo', command=obtener_siguiente_id).grid(row=6, column=0)
-    tk.Button(teacherWindow, text='Guardar', command=agregar_maestro).grid(row=6, column=1)
-    tk.Button(teacherWindow, text='Cancelar', command=limpiar_campos).grid(row=6, column=2)
-    tk.Button(teacherWindow, text='Editar', command=editar_maestro).grid(row=6, column=3)
-    tk.Button(teacherWindow, text='Baja', command=eliminar_profesor).grid(row=6, column=4)
+    tk.Button(teacherWindow, text="Agregar Maestro", command=agregar_maestro).grid(row=9, column=0)
+    tk.Button(teacherWindow, text="Editar Maestro", command=editar_maestro).grid(row=9, column=1)
+    tk.Button(teacherWindow, text="Eliminar Maestro", command=eliminar_profesor).grid(row=9, column=2)
+    tk.Button(teacherWindow, text="Limpiar Campos", command=limpiar_campos).grid(row=10, column=1)
+
+    # Cargar las carreras en el Combobox al iniciar la ventana
+    def cargar_carreras():
+        conn = conectar()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT nombre_carrera FROM Carreras")
+            carreras = [row[0] for row in cursor.fetchall()]
+            carreraEntry['values'] = carreras
+        except Exception as e:
+            messagebox.showinfo("Error al cargar carreras", str(e))
+        finally:
+            conn.close()
+
+    # Cargar las materias en la Listbox al iniciar la ventana
+    def cargar_materias():
+        conn = conectar()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT nombre_materia FROM Materias")
+            materias = [row[0] for row in cursor.fetchall()]
+            for materia in materias:
+                materiaListbox.insert(tk.END, materia)
+        except Exception as e:
+            messagebox.showinfo("Error al cargar materias", str(e))
+        finally:
+            conn.close()
+
+    cargar_carreras()
+    cargar_materias()
 
     teacherWindow.mainloop()
