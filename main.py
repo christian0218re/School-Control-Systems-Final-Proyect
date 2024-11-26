@@ -30,14 +30,14 @@ def abrir_menu_principal(user_id, rol, nombre):
     menu_admin.add_command(label="Usuarios", command=createUserWindow)
     menu_admin.add_command(label="Grupo", command=createGrupoWindow)
     menu_admin.add_command(label="Salones", command=createClassroomWindow)
-    menu_admin.add_command(label="Maestros", command=createTeacherWindow)
+    menu_admin.add_command(label="Maestros", command=lambda: createTeacherWindow(user_id,rol))
     menu_admin.add_command(label="Generar Grupos", command=createGenerarGruposWindow)
 
     menu_alumnos = tk.Menu(barra_menus, tearoff=0)
     menu_alumnos.add_command(label="Perfil", command=lambda: createStudentWindow(user_id,rol))
 
     menu_maestros = tk.Menu(barra_menus, tearoff=0)
-    menu_maestros.add_command(label="Administrar Maestros")
+    menu_maestros.add_command(label="Administrar Maestros", command=lambda: createTeacherWindow(user_id,rol))
 
     menu_planeacion = tk.Menu(barra_menus, tearoff=0)
     menu_planeacion.add_command(label="Abrir Planeación", command=createPlaneacionWindow)
@@ -47,7 +47,7 @@ def abrir_menu_principal(user_id, rol, nombre):
         barra_menus.add_cascade(label="Admin", menu=menu_admin)
     
     if rol == "maestro":
-        barra_menus.add_cascade(label="Algo", menu=menu_maestros)
+        barra_menus.add_cascade(label="Administracion personal", menu=menu_maestros)
 
     if rol == "alumno":
         barra_menus.add_cascade(label="Alumno", menu=menu_alumnos)
