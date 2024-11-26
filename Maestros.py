@@ -366,11 +366,11 @@ def createTeacherWindow(idUsuario,rol):
     studyGrade.grid(row=6, column=1)
 
     tk.Label(teacherWindow, text="Carreras:").grid(row=7, column=0)
-    carreraListbox = tk.Listbox(teacherWindow, selectmode=tk.SINGLE)
+    carreraListbox = tk.Listbox(teacherWindow, selectmode=tk.SINGLE, exportselection=0)
     carreraListbox.grid(row=7, column=1)
 
     tk.Label(teacherWindow, text="Materias:").grid(row=8, column=0)
-    materiaListbox = tk.Listbox(teacherWindow, selectmode=tk.MULTIPLE)
+    materiaListbox = tk.Listbox(teacherWindow, selectmode=tk.MULTIPLE, exportselection=0)
     materiaListbox.grid(row=8, column=1)
 
 
@@ -548,8 +548,8 @@ def createTeacherWindow(idUsuario,rol):
         tk.Button(teacherWindow, text="Buscar", command=buscar_profesor).grid(row=0, column=2)
 
         tk.Button(teacherWindow, text="Agregar", command=agregar_maestro).grid(row=9, column=0, columnspan=2)
-        tk.Button(teacherWindow, text="Editar Maestro", command=editar_maestro).grid(row=9, column=1)
-        tk.Button(teacherWindow, text="Eliminar Maestro", command=eliminar_profesor).grid(row=9, column=2)
+        tk.Button(teacherWindow, text="Editar Maestro", command=editar_maestro).grid(row=9, column=2)
+        tk.Button(teacherWindow, text="Eliminar Maestro", command=eliminar_profesor).grid(row=9, column=3)
         tk.Button(teacherWindow, text="Limpiar Campos", command=limpiar_campos).grid(row=10, column=1)
         tk.Button(teacherWindow, text='Nuevo Maestro', command=obtener_siguiente_id).grid(row=10, column=2)
     else:
