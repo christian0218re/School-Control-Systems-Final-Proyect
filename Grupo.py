@@ -8,6 +8,7 @@ import sqlite3
 def createGrupoWindow():
 
     def buscar_grupo():
+        idEntry.config(state="normal")
         conn = conectar()
         cursor = conn.cursor()
         grupo_id = searchEntry.get()  
@@ -75,6 +76,7 @@ def createGrupoWindow():
             messagebox.showinfo("Error", f"Hubo un error al buscar el grupo: {e}")
 
         finally:
+            idEntry.config(state="disabled")
             conn.close()
 
     def validarHorarios(id_salon, id_horario_nuevo):
