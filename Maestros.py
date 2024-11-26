@@ -13,6 +13,16 @@ def createTeacherWindow(idUsuario,rol):
             else:
                 buscar_maestro(id_usuario)
 
+    def limpiar_campos():
+        idEntry.delete(0, tk.END)
+        nameEntry.delete(0, tk.END)
+        midName.delete(0, tk.END)
+        lasName.delete(0, tk.END)
+        emailEntry.delete(0, tk.END)
+        carreraListbox.selection_clear(0, tk.END)
+        materiaListbox.selection_clear(0, tk.END)
+        studyGrade.set('')
+
     def agregar_maestro():
         conn = conectar()
         cursor = conn.cursor()
@@ -239,69 +249,69 @@ def createTeacherWindow(idUsuario,rol):
             conn.close()
 
     def eliminar_profesor():
-    conn = conectar()
-    cursor = conn.cursor()
-    id_maestro = idEntry.get()
+        conn = conectar()
+        cursor = conn.cursor()
+        id_maestro = idEntry.get()
 
-    if not id_maestro:
-        messagebox.showinfo("Error", "Por favor, busque un profesor para eliminar")
-        return
+        if not id_maestro:
+            messagebox.showinfo("Error", "Por favor, busque un profesor para eliminar")
+            return
 
-    confirmacion = messagebox.askyesno("Confirmación",
-                                       "¿Estás seguro de que deseas eliminar este profesor y sus asociaciones?")
-    if not confirmacion:
-        return
+        confirmacion = messagebox.askyesno("Confirmación",
+                                           "¿Estás seguro de que deseas eliminar este profesor y sus asociaciones?")
+        if not confirmacion:
+            return
 
-    try:
-        # No es necesario usar conn.begin() en SQLite
+        try:
+            # No es necesario usar conn.begin() en SQLite
 
-        # Buscar las materias y carreras asociadas al maestro
-        cursor.execute("SELECT id_materia FROM Maestro_Materias WHERE id_maestro = ?", (id_maestro,))
-        materias = cursor.fetchall()
+            # Buscar las materias y carreras asociadas al maestro
+            cursor.execute("SELECT id_materia FROM Maestro_Materias WHERE id_maestro = ?", (id_maestro,))
+            materias = cursor.fetchall()
 
-        cursor.execute("SELECT id_carrera FROM Maestro_Carreras WHERE id_maestro = ?", (id_maestro,))
-        carreras = cursor.fetchall()
+            cursor.execute("SELECT id_carrera FROM Maestro_Carreras WHERE id_maestro = ?", (id_maestro,))
+            carreras = cursor.fetchall()
 
-        # Eliminar las relaciones en Maestro_Materias y Maestro_Carreras
-        for materia in materias:
-            cursor.execute("DELETE FROM Maestro_Materias WHERE id_maestro = ? AND id_materia = ?",
-                           (id_maestro, materia[0]))
+            # Eliminar las relaciones en Maestro_Materias y Maestro_Carreras
+            for materia in materias:
+                cursor.execute("DELETE FROM Maestro_Materias WHERE id_maestro = ? AND id_materia = ?",
+                               (id_maestro, materia[0]))
 
-        for carrera in carreras:
-            cursor.execute("DELETE FROM Maestro_Carreras WHERE id_maestro = ? AND id_carrera = ?",
-                           (id_maestro, carrera[0]))
+            for carrera in carreras:
+                cursor.execute("DELETE FROM Maestro_Carreras WHERE id_maestro = ? AND id_carrera = ?",
+                               (id_maestro, carrera[0]))
 
-        # Eliminar las relaciones de los grupos asociados al maestro
-        cursor.execute("SELECT id_grupo FROM Grupos WHERE id_maestro = ?", (id_maestro,))
-        grupos = cursor.fetchall()
+            # Eliminar las relaciones de los grupos asociados al maestro
+            cursor.execute("SELECT id_grupo FROM Grupos WHERE id_maestro = ?", (id_maestro,))
+            grupos = cursor.fetchall()
 
-        for grupo in grupos:
-            id_grupo = grupo[0]
-            try:
-                # Eliminar registros relacionados en cascada
-                cursor.execute("DELETE FROM Alumnos_Grupos WHERE id_grupo = ?", (id_grupo,))
-                cursor.execute("DELETE FROM Grupos WHERE id_grupo = ?", (id_grupo,))
-            except Exception as e:
-                messagebox.showerror("Error", f"Ocurrió un error al eliminar los grupos: {e}")
-                conn.rollback()  # Revertir la transacción en caso de error
-                return
+            for grupo in grupos:
+                id_grupo = grupo[0]
+                try:
+                    # Eliminar registros relacionados en cascada
+                    cursor.execute("DELETE FROM Alumnos_Grupos WHERE id_grupo = ?", (id_grupo,))
+                    cursor.execute("DELETE FROM Grupos WHERE id_grupo = ?", (id_grupo,))
+                except Exception as e:
+                    messagebox.showerror("Error", f"Ocurrió un error al eliminar los grupos: {e}")
+                    conn.rollback()  # Revertir la transacción en caso de error
+                    return
 
-        # Eliminar al maestro
-        cursor.execute("DELETE FROM Maestros WHERE id_maestro = ?", (id_maestro,))
+            # Eliminar al maestro
+            cursor.execute("DELETE FROM Maestros WHERE id_maestro = ?", (id_maestro,))
 
-        # Confirmar la transacción
-        conn.commit()
+            # Confirmar la transacción
+            conn.commit()
 
-        messagebox.showinfo("Éxito", "El profesor y sus registros relacionados fueron eliminados correctamente.")
-        limpiar_campos()
+            messagebox.showinfo("Éxito", "El profesor y sus registros relacionados fueron eliminados correctamente.")
+            limpiar_campos()
 
-    except Exception as e:
-        # En caso de un error, revertir todos los cambios
-        conn.rollback()
-        messagebox.showerror("Error", f"Ocurrió un error al eliminar al profesor: {e}")
+        except Exception as e:
+            # En caso de un error, revertir todos los cambios
+            conn.rollback()
+            messagebox.showerror("Error", f"Ocurrió un error al eliminar al profesor: {e}")
 
-    finally:
-        conn.close()
+        finally:
+            conn.close()
 
 
     def obtener_siguiente_id():
@@ -322,15 +332,6 @@ def createTeacherWindow(idUsuario,rol):
         idEntry.delete(0, tk.END)
         idEntry.insert(0, siguiente_id)
 
-    def limpiar_campos():
-        idEntry.delete(0, tk.END)
-        nameEntry.delete(0, tk.END)
-        midName.delete(0, tk.END)
-        lasName.delete(0, tk.END)
-        emailEntry.delete(0, tk.END)
-        carreraListbox.selection_clear(0, tk.END)
-        materiaListbox.selection_clear(0, tk.END)
-        studyGrade.set('')
         
 
         # Configuración de la ventana principal
