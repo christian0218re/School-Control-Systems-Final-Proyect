@@ -289,7 +289,7 @@ def createTeacherWindow(idUsuario,rol):
                 id_grupo = grupo[0]
                 try:
                     # Eliminar registros relacionados en cascada
-                    cursor.execute("DELETE FROM Alumnos_Grupos WHERE id_grupo = ?", (id_grupo,))
+                    cursor.execute("DELETE FROM Grupo_Alumnos WHERE id_grupo = ?", (id_grupo,))
                     cursor.execute("DELETE FROM Grupos WHERE id_grupo = ?", (id_grupo,))
                 except Exception as e:
                     messagebox.showerror("Error", f"Ocurrió un error al eliminar los grupos: {e}")
