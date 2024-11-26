@@ -142,9 +142,9 @@ def createTeacherWindow(idUsuario,rol):
 
                 cursor.execute(
                     """
-                    SELECT ma.nombre_carrera
+                    SELECT ca.nombre_carrera
                     FROM Carreras ca
-                    JOIN Maestro_Carreras mm ON ma.id_carrera = mm.id_carrera
+                    JOIN Maestro_Carreras mm ON ca.id_carrera = mm.id_carrera
                     WHERE mm.id_maestro = ?
                     """,
                     (id_maestro,)
@@ -328,10 +328,10 @@ def createTeacherWindow(idUsuario,rol):
         midName.delete(0, tk.END)
         lasName.delete(0, tk.END)
         emailEntry.delete(0, tk.END)
-        carreraListbox.set('')
+        carreraListbox.selection_clear(0, tk.END)
         materiaListbox.selection_clear(0, tk.END)
         studyGrade.set('')
-        idSearch.delete(0, tk.END)
+        
 
         # Configuración de la ventana principal
 
@@ -339,11 +339,6 @@ def createTeacherWindow(idUsuario,rol):
     teacherWindow.title("Gestión de Maestros")
     teacherWindow.geometry("600x600")
 
-    # ID del maestro para búsquedas
-    tk.Label(teacherWindow, text="ID de Maestro:").grid(row=0, column=0)
-    idSearch = tk.Entry(teacherWindow)
-    idSearch.grid(row=0, column=1)
-    tk.Button(teacherWindow, text="Buscar", command=buscar_profesor).grid(row=0, column=2)
 
     # Información del maestro
     tk.Label(teacherWindow, text="ID de Maestro:").grid(row=1, column=0)
@@ -378,11 +373,6 @@ def createTeacherWindow(idUsuario,rol):
     materiaListbox = tk.Listbox(teacherWindow, selectmode=tk.MULTIPLE)
     materiaListbox.grid(row=8, column=1)
 
-    tk.Button(teacherWindow, text="Agregar", command=agregar_maestro).grid(row=9, column=0, columnspan=2)
-    tk.Button(teacherWindow, text="Editar Maestro", command=editar_maestro).grid(row=9, column=1)
-    tk.Button(teacherWindow, text="Eliminar Maestro", command=eliminar_profesor).grid(row=9, column=2)
-    tk.Button(teacherWindow, text="Limpiar Campos", command=limpiar_campos).grid(row=10, column=1)
-    tk.Button(teacherWindow, text='Nuevo Maestro', command=obtener_siguiente_id).grid(row=10, column=2)
 
     # Cargar las carreras en el Combobox al iniciar la ventana
     def cargar_carreras():
@@ -418,9 +408,9 @@ def createTeacherWindow(idUsuario,rol):
             messagebox.showinfo("Error al cargar materias", str(e))
         finally:
             conn.close()
-
-    cargar_carreras()
-    cargar_materias()
+    if(rol!= "maestro"):
+        cargar_carreras()
+        cargar_materias()
 
     def validarRolMaestro(id_usuario):
         conn = conectar()
@@ -543,5 +533,46 @@ def createTeacherWindow(idUsuario,rol):
             messagebox.showinfo("Error", f"No se pudo registrar al maestro: {str(e)}")
         finally:
             conn.close()
+    def limpiar_camposMAestro():
+        limpiar_campos()
+        cargar_carreras()
+        cargar_materias()
+        buscar_maestro(id_usuario)
 
+
+    if(rol!="maestro"):
+            # ID del maestro para búsquedas
+        tk.Label(teacherWindow, text="ID de Maestro:").grid(row=0, column=0)
+        idSearch = tk.Entry(teacherWindow)
+        idSearch.grid(row=0, column=1)
+        tk.Button(teacherWindow, text="Buscar", command=buscar_profesor).grid(row=0, column=2)
+
+        tk.Button(teacherWindow, text="Agregar", command=agregar_maestro).grid(row=9, column=0, columnspan=2)
+        tk.Button(teacherWindow, text="Editar Maestro", command=editar_maestro).grid(row=9, column=1)
+        tk.Button(teacherWindow, text="Eliminar Maestro", command=eliminar_profesor).grid(row=9, column=2)
+        tk.Button(teacherWindow, text="Limpiar Campos", command=limpiar_campos).grid(row=10, column=1)
+        tk.Button(teacherWindow, text='Nuevo Maestro', command=obtener_siguiente_id).grid(row=10, column=2)
+    else:
+        limpiar_camposMAestro()
+        idEntry.config(state="disabled")
+        emailEntry.config(state="disabled")
+        #carreraListbox.config(state="disabled")
+        materiaListbox.config(state="disabled")
+
+        tk.Button(teacherWindow, text="Guardar Cambios", command=editar_maestro).grid(row=9, column=1)
+        tk.Button(teacherWindow, text="Cancelar", command=limpiar_camposMAestro).grid(row=10, column=1)
+        conn = conectar()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT Creado FROM GrupoCreado WHERE grupo = 1")
+            resultado = cursor.fetchone()
+
+            if resultado and resultado[0] == 1:  
+                materiaListbox.config(state="disabled")  
+            else:
+                materiaListbox.config(state="normal")  
+        except Exception as e:
+            print(f"Error al verificar la base de datos: {e}")
+        finally:
+            conn.close()
     teacherWindow.mainloop()

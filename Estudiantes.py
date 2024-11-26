@@ -53,7 +53,6 @@ def createStudentWindow(idUsuario, rol):
                 "INSERT INTO Alumnos (id_alumno, nombre, fecha_nacimiento, A_paterno, A_materno, carrera, estado, correo, id_usuario) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (id_estudiante, nombre, fechaNac, a_paterno, a_materno, carrera, estado, email, id_usuario)
-                # Aseguramos que id_usuario se inserte
             )
             conn.commit()
 
@@ -92,23 +91,26 @@ def createStudentWindow(idUsuario, rol):
         alumno = cursor.fetchone()
 
         if alumno:
-            idEntry.delete(0, tk.END)
-            idEntry.insert(tk.END, alumno[0])
-            nameEntry.delete(0, tk.END)
-            nameEntry.insert(tk.END, alumno[1])
-            birthEntry.set_date(alumno[2])
-            midNameEntry.delete(0, tk.END)
-            midNameEntry.insert(tk.END, alumno[3])
-            lasNameEntry.delete(0, tk.END)
-            lasNameEntry.insert(tk.END, alumno[4])
-            careerEntry.set(alumno[5])
-            stateEntry.delete(0, tk.END)
-            stateEntry.insert(tk.END, alumno[6])
-            emailEntry.delete(0, tk.END)
-            emailEntry.insert(tk.END, alumno[7])
+            try:
+                idEntry.delete(0, tk.END)
+                idEntry.insert(tk.END, alumno[0])
+                nameEntry.delete(0, tk.END)
+                nameEntry.insert(tk.END, alumno[1])
+                birthEntry.set_date(alumno[2])
+                midNameEntry.delete(0, tk.END)
+                midNameEntry.insert(tk.END, alumno[3])
+                lasNameEntry.delete(0, tk.END)
+                lasNameEntry.insert(tk.END, alumno[4])
+                careerEntry.set(alumno[5])
+                stateEntry.delete(0, tk.END)
+                stateEntry.insert(tk.END, alumno[6])
+                emailEntry.delete(0, tk.END)
+                emailEntry.insert(tk.END, alumno[7])
 
-            # Limpiar el Listbox antes de agregar las materias
-            materiaListbox.selection_clear(0, tk.END)
+                # Limpiar el Listbox antes de agregar las materias
+                materiaListbox.selection_clear(0, tk.END)
+            except:
+                pass
 
             # Obtener las materias asociadas al alumno
             cursor.execute("""
@@ -225,6 +227,9 @@ def createStudentWindow(idUsuario, rol):
         birthEntry.set_date("2000-01-01")
         careerEntry.set("")
         materiaListbox.selection_clear(0, tk.END)  # Limpiar selección del Listbox
+    def limpiar_camposAlumno():
+        limpiar_campos()
+        buscar_alumno(id_usuario)
 
     def obtener_siguiente_id():
         conn = conectar()
@@ -257,15 +262,6 @@ def createStudentWindow(idUsuario, rol):
     studentWindow = tk.Toplevel()
     studentWindow.title("Gestión de Estudiantes")
 
-    # Fila de búsqueda por ID de estudiante
-    labelBusqueda = tk.Label(studentWindow, text="Buscar por ID de Estudiante:")
-    labelBusqueda.grid(row=0, column=0, padx=10, pady=10)
-
-    idEntryBusqueda = tk.Entry(studentWindow)
-    idEntryBusqueda.grid(row=0, column=1, padx=10, pady=10)
-
-    buscarButton = tk.Button(studentWindow, text="Buscar", command=buscar_estudiante)
-    buscarButton.grid(row=0, column=2, padx=10, pady=10)
 
     # Labels y Entradas para los campos
     tk.Label(studentWindow, text="ID Estudiante:").grid(row=1, column=0, padx=10, pady=10)
@@ -312,25 +308,7 @@ def createStudentWindow(idUsuario, rol):
     for materia in materiaList:
         materiaListbox.insert(tk.END, materia)
 
-    # Botones de acción
-    agregarButton = tk.Button(studentWindow, text="Agregar Estudiante", command=agregar_estudiante)
-    agregarButton.grid(row=10, column=0, padx=10, pady=10)
 
-    editarButton = tk.Button(studentWindow, text="Editar Estudiante", command=editar_estudiante)
-    editarButton.grid(row=10, column=1, padx=10, pady=10)
-
-    nuevoBoton = tk.Button(studentWindow, text="Nuevo", command=obtener_siguiente_id)
-    nuevoBoton.grid(row=10, column=2, padx=10, pady=10)
-
-    eliminarButton = tk.Button(studentWindow, text="Eliminar Estudiante", command=eliminar_estudiante)
-    eliminarButton.grid(row=10, column=3, padx=10, pady=10)
-
-    limpiarButton = tk.Button(studentWindow, text="Limpiar Campos", command=limpiar_campos)
-    limpiarButton.grid(row=11, column=0, padx=10, pady=10)
-
-    studentWindow.mainloop()
-
-    studentWindow.geometry("600x400")
 
     def validarRolAlumno(id_usuario):
         conn = conectar()
@@ -380,38 +358,54 @@ def createStudentWindow(idUsuario, rol):
     def buscar_alumno(id_usuario):
         conn = conectar()
         cursor = conn.cursor()
-
         cursor.execute("SELECT * FROM Alumnos WHERE id_usuario = ?", (id_usuario,))
         alumno = cursor.fetchone()
-
+        
         if alumno:
-            if (alumno[6] == None):
-                idEntry.insert(tk.END, alumno[0])
-                nameEntry.insert(tk.END, alumno[1])
-                birthEntry.set_date(alumno[2])
-                midNameEntry.insert(tk.END, alumno[3])
-                lasNameEntry.insert(tk.END, alumno[4])
-                emailEntry.insert(tk.END, alumno[7])
-                messagebox.showinfo("Éxito", "Alumno encontrado")
-            else:
-                idEntry.delete(0, tk.END)
-                idEntry.insert(tk.END, alumno[0])
-                nameEntry.delete(0, tk.END)
-                nameEntry.insert(tk.END, alumno[1])
-                birthEntry.set_date(alumno[2])
-                midNameEntry.delete(0, tk.END)
-                midNameEntry.insert(tk.END, alumno[3])
-                lasNameEntry.delete(0, tk.END)
-                lasNameEntry.insert(tk.END, alumno[4])
-                careerEntry.set(alumno[5])
-                stateEntry.delete(0, tk.END)
-                stateEntry.insert(tk.END, alumno[6])
-                emailEntry.delete(0, tk.END)
-                emailEntry.insert(tk.END, alumno[7])
-                messagebox.showinfo("Éxito", "Alumno encontrado")
+            # Limpiar campos existentes
+            idEntry.delete(0, tk.END)
+            nameEntry.delete(0, tk.END)
+            midNameEntry.delete(0, tk.END)
+            lasNameEntry.delete(0, tk.END)
+            emailEntry.delete(0, tk.END)
+            stateEntry.delete(0, tk.END)
+            careerEntry.delete(0, tk.END)
+            
+            # Insertar datos del alumno encontrado
+            idEntry.insert(tk.END, alumno[0])
+            nameEntry.insert(tk.END, alumno[1])
+            birthEntry.set_date(alumno[2])
+            midNameEntry.insert(tk.END, alumno[3])
+            lasNameEntry.insert(tk.END, alumno[4])
+            careerEntry.set(alumno[5])
+            stateEntry.insert(tk.END, alumno[6] if alumno[6] is not None else '')
+            emailEntry.insert(tk.END, alumno[7])
+            
+            # Limpiar y cargar materias del alumno
+            materiaListbox.selection_clear(0, tk.END)
+            
+            # Buscar las materias del alumno
+            cursor.execute("""
+                SELECT m.id_materia, m.nombre_materia 
+                FROM Materias m
+                JOIN Alumno_Materias am ON m.id_materia = am.id_materia
+                WHERE am.id_alumno = ?
+            """, (alumno[0],))
+            
+            materias_alumno = cursor.fetchall()
+            
+            # Seleccionar las materias del alumno en el listbox
+            for materia in materias_alumno:
+                # Buscar el índice de la materia en el listbox
+                for i in range(materiaListbox.size()):
+                    if materiaListbox.get(i) == materia[1]:  # Comparar por nombre de materia
+                        materiaListbox.selection_set(i)
+                        break
+            
+            messagebox.showinfo("Éxito", "Alumno encontrado")
         else:
             messagebox.showinfo("No Encontrado", "No se encontró un alumno con ese ID")
-
+        
         conn.close()
 
     def agregar_CuentaAlumno(id_usuario):
@@ -455,5 +449,60 @@ def createStudentWindow(idUsuario, rol):
         finally:
             conn.close()
 
-    procesarAlumno(id_usuario)
+    #procesarAlumno(id_usuario)
+    print("como computacion1@example.com")
+    if (rol!="alumno"):
+            # Fila de búsqueda por ID de estudiante
+        labelBusqueda = tk.Label(studentWindow, text="Buscar por ID de Estudiante:")
+        labelBusqueda.grid(row=0, column=0, padx=10, pady=10)
+
+        idEntryBusqueda = tk.Entry(studentWindow)
+        idEntryBusqueda.grid(row=0, column=1, padx=10, pady=10)
+
+        buscarButton = tk.Button(studentWindow, text="Buscar", command=buscar_estudiante)
+        buscarButton.grid(row=0, column=2, padx=10, pady=10)
+
+        agregarButton = tk.Button(studentWindow, text="Agregar Estudiante", command=agregar_estudiante)
+        agregarButton.grid(row=10, column=0, padx=10, pady=10)
+
+        editarButton = tk.Button(studentWindow, text="Editar Estudiante", command=editar_estudiante)
+        editarButton.grid(row=10, column=1, padx=10, pady=10)
+
+        nuevoBoton = tk.Button(studentWindow, text="Nuevo", command=obtener_siguiente_id)
+        nuevoBoton.grid(row=10, column=2, padx=10, pady=10)
+
+        eliminarButton = tk.Button(studentWindow, text="Eliminar Estudiante", command=eliminar_estudiante)
+        eliminarButton.grid(row=10, column=3, padx=10, pady=10)
+
+        limpiarButton = tk.Button(studentWindow, text="Limpiar Campos", command=limpiar_campos)
+        limpiarButton.grid(row=11, column=0, padx=10, pady=10)
+    else:
+        limpiar_campos()
+        buscar_alumno(id_usuario)
+        idEntry.config(state="disabled")
+        emailEntry.config(state="disabled")
+        stateEntry.config(state="disabled")
+        birthEntry.config(state="disabled")
+        editarButton = tk.Button(studentWindow, text="Guardar Cambios", command=editar_estudiante)
+        editarButton.grid(row=10, column=1, padx=10, pady=10)
+        limpiarButton = tk.Button(studentWindow, text="Cancelar", command=limpiar_camposAlumno)
+        limpiarButton.grid(row=11, column=0, padx=10, pady=10)
+        conn = conectar()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT Creado FROM GrupoCreado WHERE grupo = 1")
+            resultado = cursor.fetchone()
+
+            if resultado and resultado[0] == 1:  
+                careerEntry.config(state="disabled")
+                materiaListbox.config(state="disabled")
+            else:
+                materiaListbox.config(state="normal")  
+                careerEntry.config(state="normal")  
+        except Exception as e:
+            print(f"Error al verificar la base de datos: {e}")
+        finally:
+            conn.close()
+
     studentWindow.mainloop()
+    studentWindow.geometry("600x400")

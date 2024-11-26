@@ -8,6 +8,7 @@ from Materias import createMateriaWindow
 from horario import createHorarioWindow 
 from Grupo import createGrupoWindow
 from pleanacion import createPlaneacionWindow
+from pleanacionHorario import createPlaneacionHorarioWindow
 from Salones import createClassroomWindow
 from Maestros import createTeacherWindow
 from GenerarGruposAuto import createGenerarGruposWindow
@@ -35,9 +36,11 @@ def abrir_menu_principal(user_id, rol, nombre):
 
     menu_alumnos = tk.Menu(barra_menus, tearoff=0)
     menu_alumnos.add_command(label="Perfil", command=lambda: createStudentWindow(user_id,rol))
+    menu_alumnos.add_command(label="Horario", command=lambda: createPlaneacionHorarioWindow(user_id))
 
     menu_maestros = tk.Menu(barra_menus, tearoff=0)
-    menu_maestros.add_command(label="Administrar Maestros", command=lambda: createTeacherWindow(user_id,rol))
+    menu_maestros.add_command(label="Perfil", command=lambda: createTeacherWindow(user_id,rol))
+    menu_maestros.add_command(label="Horario", command=lambda: createPlaneacionHorarioWindow(user_id))
 
     menu_planeacion = tk.Menu(barra_menus, tearoff=0)
     menu_planeacion.add_command(label="Abrir Planeación", command=createPlaneacionWindow)

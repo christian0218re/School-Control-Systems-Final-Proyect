@@ -37,8 +37,8 @@ CREATE TABLE IF NOT EXISTS Alumnos (
     carrera TEXT,
     estado TEXT,
     correo TEXT,
-    id_usuario INTEGER NOT NULL, -- Campo que referencia a Usuarios
-    horarios_ocupados TEXT,  -- Campo añadido para almacenar horarios ocupados
+    id_usuario INTEGER NOT NULL, 
+    horarios_ocupados TEXT, 
     FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -54,12 +54,14 @@ CREATE TABLE IF NOT EXISTS Alumno_Materias (
 
 CREATE TABLE IF NOT EXISTS Maestros (
     id_maestro INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT NOT NULL,
-    a_paterno TEXT NOT NULL,
-    a_materno TEXT NOT NULL,
-    correo TEXT NOT NULL,
-    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) NOT NULL,
-    horarios_ocupados TEXT  -- Campo añadido para almacenar horarios ocupados
+    nombre TEXT ,
+    a_paterno TEXT ,
+    a_materno TEXT ,
+    correo TEXT ,
+    grado_estudio TEXT CHECK(grado_estudio IN ('Licenciatura', 'Maestria', 'Doctorado')) ,
+    horarios_ocupados TEXT ,
+    id_usuario INTEGER NOT NULL,
+    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- Tabla de unión Maestro_Materias
@@ -150,7 +152,11 @@ CREATE TABLE IF NOT EXISTS Salones (
 CREATE TABLE IF NOT EXISTS GrupoCreado (
     grupo INTEGER PRIMARY KEY AUTOINCREMENT,
     Creado INTEGER DEFAULT 0
+
 );
+
+INSERT OR IGNORE INTO GrupoCreado (grupo, Creado) 
+VALUES (1, 0);
 
 """
 # Ejecutar el script SQL
@@ -158,7 +164,6 @@ cursor.executescript(script_sql)
 
 #Para restablecer la base de datos descomenta todo lo de abajo pero primero elimina la DataBase.db
 """
-prueba =cursor.execute("SELECT COUNT(*) FROM GrupoCreado WHERE grupo = 1")
 
 def inicializarGrupoCreado():
     try:
@@ -218,13 +223,17 @@ alumnos = [
 ]
 usuarios = [
     # Tipo usuario: administrador, maestro, alumno
-    ("admin", "admin", "admin", "admin", "administrador", "", ""),  # Sin apellidos
+    ("admin", "admin", "admin", "admin", "administrador", "", ""),
     ("Juan Pérez", "juan.perez@example.com", "juan", "1234", "maestro", "Pérez", "Juan"),
     ("Ana López", "ana.lopez@example.com", "ana", "1234", "maestro", "López", "Ana"),
     ("Luis Hernández", "luis.hernandez@example.com", "luis", "1234", "maestro", "Hernández", "Luis"),
+    ("María González", "maria.gonzalez@example.com", "maria", "1234", "maestro", "González", "María"),
+    ("Carlos Ramírez", "carlos.ramirez@example.com", "carlos", "1234", "maestro", "Ramírez", "Carlos"),
     ("Roberto Martínez", "computacion1@example.com", "roberto", "1234", "alumno", "Martínez", "Roberto"),
     ("Laura Fernández", "computacion2@example.com", "laura", "1234", "alumno", "Fernández", "Laura"),
-    ("Pedro Sánchez", "computacion3@example.com", "pedro", "1234", "alumno", "Sánchez", "Pedro")
+    ("Pedro Sánchez", "computacion3@example.com", "pedro", "1234", "alumno", "Sánchez", "Pedro"),
+    ("Mónica Castro", "computacion4@example.com", "monica", "1234", "alumno", "Castro", "Mónica"),
+    ("José Rodríguez", "computacion5@example.com", "jose", "1234", "alumno", "Rodríguez", "José")
 ]
 
 # Relación de materias con carrera
@@ -272,14 +281,20 @@ for nombre, codigo, creditos, semestre in materias:
 for nombre, correo, usuario, contraseña, tipo, a_paterno, a_materno in usuarios:
     cursor.execute("INSERT INTO Usuarios (nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?, ?)", 
                    (nombre, a_paterno, a_materno, correo, usuario, contraseña, tipo))
-# Maestros
-for nombre, a_paterno, a_materno, correo, grado in maestros:
-    cursor.execute("INSERT INTO Maestros (nombre, a_paterno, a_materno, correo, grado_estudio) VALUES (?, ?, ?, ?, ?)", (nombre, a_paterno, a_materno, correo, grado))
 
-# Alumnos
+for nombre, a_paterno, a_materno, correo, grado in maestros:
+    cursor.execute("SELECT id_usuario FROM Usuarios WHERE correo = ?", (correo,))
+    id_usuario = cursor.fetchone()[0]
+    
+    cursor.execute("INSERT INTO Maestros (nombre, a_paterno, a_materno, correo, grado_estudio, id_usuario) VALUES (?, ?, ?, ?, ?, ?)", 
+                   (nombre, a_paterno, a_materno, correo, grado, id_usuario))
+
 for nombre, a_paterno, a_materno, fecha, correo in alumnos:
+    cursor.execute("SELECT id_usuario FROM Usuarios WHERE correo = ?", (correo,))
+    id_usuario = cursor.fetchone()[0]
+    
     cursor.execute("INSERT INTO Alumnos (nombre, a_paterno, a_materno, fecha_nacimiento, correo, carrera, estado, id_usuario) VALUES (?, ?, ?, ?, ?, ?, 'Activo', ?)", 
-                  (nombre, a_paterno, a_materno, fecha, correo, "Computación", 1))
+                  (nombre, a_paterno, a_materno, fecha, correo, "Computación", id_usuario))
 
 # Relaciones Maestro-Carrera y Materias-Carrera
 for id_maestro, id_carrera in maestros_carrera:

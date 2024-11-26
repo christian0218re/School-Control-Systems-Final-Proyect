@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 from tkcalendar import DateEntry
-from DataBase import conectar  # Importamos la función de conexión
+from DataBase import conectar  
 
 def createGenerarGruposWindow():
 
@@ -155,7 +155,6 @@ def createGenerarGruposWindow():
                                     WHERE id_alumno = ?
                                 """, (horario_actual, horario_actual, id_alumno))
 
-                            # Actualizar horarios del maestro
                             cursor.execute("""
                                 UPDATE Maestros
                                 SET horarios_ocupados = CASE 
@@ -165,6 +164,12 @@ def createGenerarGruposWindow():
                                 END
                                 WHERE id_maestro = ?
                             """, (horario_actual, horario_actual, id_maestro))
+
+                            cursor.execute("""
+                                UPDATE GrupoCreado
+                                SET Creado = 1
+                                WHERE grupo = 1
+                            """)
 
                             conexion.commit()
                             grupo_creado = True
@@ -238,23 +243,23 @@ def createGenerarGruposWindow():
                     DELETE FROM Grupos 
                     WHERE id_grupo = ?
                 """, (id_grupo,))
-
+                cursor.execute("""
+                    UPDATE GrupoCreado
+                    SET Creado = 1
+                    WHERE grupo = 1
+                """)
             # Paso 7: Confirmar los cambios
             conexion.commit()
             messagebox.showinfo("Éxito", "Todos los grupos han sido eliminados correctamente.")
 
         except Exception as e:
-            # En caso de error, deshacer cambios
             conexion.rollback()
             messagebox.showerror("Error", f"Ocurrió un error al eliminar los grupos: {str(e)}")
         
         finally:
-            # Cerrar la conexión a la base de datos
             conexion.close()
 
 
-
-    # Creación de la ventana
     grupoWindow = tk.Toplevel()
     grupoWindow.title("Administración de Grupos")
     grupoWindow.geometry("800x600")

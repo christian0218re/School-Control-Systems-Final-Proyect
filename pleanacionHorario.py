@@ -3,36 +3,66 @@ from tkinter import ttk
 import sqlite3
 from DataBase import conectar
 
-def createPlaneacionWindow():
-    def cargar_grupos(filtro_carrera=None, filtro_materia=None):
+def createPlaneacionHorarioWindow(id_usuario):
+    def cargar_grupos(id_usuario, filtro_carrera=None, filtro_materia=None):
         conn = conectar()
         cursor = conn.cursor()
-        query = """
-        SELECT 
-            g.id_grupo, c.nombre_carrera AS carrera, m.nombre_materia AS materia, 
-            ma.nombre || ' ' || ma.a_paterno || ' ' || ma.a_materno AS maestro,
-            s.numero_salon AS salon, h.hora_inicio, h.hora_fin, h.turno, 
-            g.semestre, g.max_alumnos,
-            COUNT(CASE WHEN ga.activo = 1 THEN 1 END) as alumnos_inscritos
-        FROM Grupos g
-        JOIN Carreras c ON g.id_carrera = c.id_carrera
-        JOIN Materias m ON g.id_materia = m.id_materia
-        JOIN Maestros ma ON g.id_maestro = ma.id_maestro
-        JOIN Salones s ON g.id_salon = s.id_salon
-        JOIN Horarios h ON g.id_horario = h.id_horario
-        LEFT JOIN Grupo_Alumnos ga ON g.id_grupo = ga.id_grupo
-        """
-        filtros = []
+        
+        # Primero, determinar si el usuario es un maestro o un alumno
+        cursor.execute("SELECT 'maestro' FROM Maestros WHERE id_usuario = ?", (id_usuario,))
+        es_maestro = cursor.fetchone()
+        
+        if es_maestro:
+            # Si es maestro, mostrar grupos que imparte
+            query = """
+            SELECT 
+                g.id_grupo, c.nombre_carrera AS carrera, m.nombre_materia AS materia, 
+                ma.nombre || ' ' || ma.a_paterno || ' ' || ma.a_materno AS maestro,
+                s.numero_salon AS salon, h.hora_inicio, h.hora_fin, h.turno, 
+                g.semestre, g.max_alumnos,
+                COUNT(CASE WHEN ga.activo = 1 THEN 1 END) as alumnos_inscritos
+            FROM Grupos g
+            JOIN Carreras c ON g.id_carrera = c.id_carrera
+            JOIN Materias m ON g.id_materia = m.id_materia
+            JOIN Maestros ma ON g.id_maestro = ma.id_maestro
+            JOIN Salones s ON g.id_salon = s.id_salon
+            JOIN Horarios h ON g.id_horario = h.id_horario
+            LEFT JOIN Grupo_Alumnos ga ON g.id_grupo = ga.id_grupo
+            WHERE ma.id_usuario = ?
+            """
+            params = [id_usuario]
+        else:
+            # Si es alumno, mostrar grupos en los que está inscrito
+            query = """
+            SELECT 
+                g.id_grupo, c.nombre_carrera AS carrera, m.nombre_materia AS materia, 
+                ma.nombre || ' ' || ma.a_paterno || ' ' || ma.a_materno AS maestro,
+                s.numero_salon AS salon, h.hora_inicio, h.hora_fin, h.turno, 
+                g.semestre, g.max_alumnos,
+                COUNT(CASE WHEN ga.activo = 1 THEN 1 END) as alumnos_inscritos
+            FROM Grupos g
+            JOIN Carreras c ON g.id_carrera = c.id_carrera
+            JOIN Materias m ON g.id_materia = m.id_materia
+            JOIN Maestros ma ON g.id_maestro = ma.id_maestro
+            JOIN Salones s ON g.id_salon = s.id_salon
+            JOIN Horarios h ON g.id_horario = h.id_horario
+            JOIN Grupo_Alumnos ga ON g.id_grupo = ga.id_grupo
+            JOIN Alumnos a ON ga.id_alumno = a.id_alumno
+            WHERE a.id_usuario = ? AND ga.activo = 1
+            """
+            params = [id_usuario]
+        
+        # Aplicar filtros adicionales si están presentes
         if filtro_carrera:
-            query += " WHERE c.nombre_carrera = ?"
-            filtros.append(filtro_carrera)
+            query += " AND c.nombre_carrera = ?"
+            params.append(filtro_carrera)
         if filtro_materia:
-            query += " AND m.nombre_materia = ?" if filtro_carrera else " WHERE m.nombre_materia = ?"
-            filtros.append(filtro_materia)
+            query += " AND m.nombre_materia = ?"
+            params.append(filtro_materia)
         
         query += " GROUP BY g.id_grupo ORDER BY h.hora_inicio ASC, h.turno ASC"
         
-        cursor.execute(query, filtros)
+        cursor.execute(query, params)
         grupos = cursor.fetchall()
         conn.close()
         return grupos
@@ -54,7 +84,7 @@ def createPlaneacionWindow():
         for widget in frame_grupos.winfo_children():
             widget.destroy()
         
-        grupos = cargar_grupos(combo_carrera.get(), combo_materia.get())
+        grupos = cargar_grupos(id_usuario, combo_carrera.get(), combo_materia.get())
         
         # Crear un marco principal para contener los grupos
         marco_principal = tk.Frame(frame_grupos)

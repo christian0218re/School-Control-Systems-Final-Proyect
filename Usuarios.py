@@ -4,6 +4,30 @@ from DataBase import conectar
 import re
 
 def createUserWindow():
+    def obtener_siguiente_idd(tabla):
+        conn = conectar()
+        cursor = conn.cursor()
+        
+        # Determinar la columna de ID según la tabla
+        if tabla == "Alumnos":
+            columna_id = "id_alumno"
+        elif tabla == "Maestros":
+            columna_id = "id_maestro"
+        else:
+            raise ValueError("Tabla no válida")
+        
+        # Ejecutar consulta para obtener IDs existentes
+        cursor.execute(f"SELECT {columna_id} FROM {tabla} ORDER BY {columna_id}")
+        ids_existentes = [row[0] for row in cursor.fetchall()]
+        
+        # Encontrar el siguiente ID disponible
+        if not ids_existentes:
+            siguiente_id = 1
+        else:
+            siguiente_id = max(ids_existentes) + 1
+        
+        conn.close()
+        return siguiente_id
     def agregar_usuario():
         conn = conectar()
         cursor = conn.cursor()
@@ -35,12 +59,12 @@ def createUserWindow():
             messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
             return
 
-        # Validación de la contraseña
+        """# Validación de la contraseña
         password_regex = r'^(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}:"<>?]).{6,}$'
         if not re.match(password_regex, contrasena):
             messagebox.showinfo("Error",
                                 "La contraseña debe tener al menos 6 caracteres, una letra mayúscula y un carácter especial")
-            return
+            return"""
 
         try:
             # Insertar usuario si las validaciones son correctas
@@ -48,6 +72,22 @@ def createUserWindow():
                 "INSERT INTO Usuarios (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contrasena, tipo_usuario))
+
+            if tipo_usuario == "maestro":
+                siguiente_id_maestro = obtener_siguiente_idd("Maestros")
+                cursor.execute(
+                    "INSERT INTO Maestros (id_maestro, nombre, a_paterno, a_materno, correo, id_usuario) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (siguiente_id_maestro, nombre, a_paterno, a_materno, correo, id_usuario)
+                )
+            elif tipo_usuario == "alumno":
+                siguiente_id_alumno = obtener_siguiente_idd("Alumnos")
+                print("Alumno id = ",siguiente_id_alumno)
+                cursor.execute(
+                    "INSERT INTO Alumnos (id_alumno, nombre, a_paterno, a_materno, correo, id_usuario) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (siguiente_id_alumno, nombre, a_paterno, a_materno, correo, id_usuario)
+                )
             conn.commit()
             messagebox.showinfo("Éxito", "Usuario registrado correctamente")
             limpiar_campos()
