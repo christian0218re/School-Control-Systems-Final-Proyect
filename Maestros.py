@@ -96,27 +96,32 @@ def createTeacherWindow(idUsuario,rol):
     def buscar_profesor():
         conn = conectar()
         cursor = conn.cursor()
-
         id_maestro = idSearch.get()
-
+        
         if not id_maestro:
             messagebox.showinfo("Error", "Por favor ingrese un ID de maestro")
             return
-
+        
         try:
+            # Añade un print para ver qué ID estás buscando
+            print(f"Buscando maestro con ID: {id_maestro}")
+            
             # Consultar los detalles del maestro
             cursor.execute(
                 """
                 SELECT m.nombre, m.a_paterno, m.a_materno, m.correo, m.grado_estudio, c.nombre_carrera
                 FROM Maestros m
-                JOIN Maestro_Carreras mc ON m.id_maestro = mc.id_maestro
-                JOIN Carreras c ON mc.id_carrera = c.id_carrera
+                LEFT JOIN Maestro_Carreras mc ON m.id_maestro = mc.id_maestro
+                LEFT JOIN Carreras c ON mc.id_carrera = c.id_carrera
                 WHERE m.id_maestro = ?
                 """,
                 (id_maestro,)
             )
             maestro = cursor.fetchone()
-
+            
+            # Añade un print para ver qué resultado obtuviste
+            print(f"Resultado de búsqueda: {maestro}")
+            
             if maestro:
                 # Rellenar los campos con los datos del maestro obtenidos
                 idEntry.delete(0, tk.END)
@@ -130,7 +135,7 @@ def createTeacherWindow(idUsuario,rol):
                 emailEntry.delete(0, tk.END)
                 emailEntry.insert(tk.END, maestro[3])
                 studyGrade.set(maestro[4])
-
+                
                 # Consultar las materias asociadas al maestro
                 cursor.execute(
                     """
@@ -142,14 +147,15 @@ def createTeacherWindow(idUsuario,rol):
                     (id_maestro,)
                 )
                 materias_asociadas = [row[0] for row in cursor.fetchall()]
-
+                
                 # Limpiar la lista de materias y seleccionar las asociadas
                 materiaListbox.selection_clear(0, tk.END)
                 for index in range(materiaListbox.size()):
                     materia = materiaListbox.get(index)
                     if materia in materias_asociadas:
                         materiaListbox.select_set(index)
-
+                
+                # Consultar las carreras asociadas
                 cursor.execute(
                     """
                     SELECT ca.nombre_carrera
@@ -160,24 +166,28 @@ def createTeacherWindow(idUsuario,rol):
                     (id_maestro,)
                 )
                 carreras_asociadas = [row[0] for row in cursor.fetchall()]
+                
                 carreraListbox.selection_clear(0, tk.END)
                 for index in range(carreraListbox.size()):
                     carrera = carreraListbox.get(index)
                     if carrera in carreras_asociadas:
                         carreraListbox.select_set(index)
-
-                messagebox.showinfo("Maestro Encontrado",
-                                    f"Maestro con ID '{id_maestro}' encontrado y campos llenados.")
+                
+                messagebox.showinfo("Maestro Encontrado", 
+                    f"Maestro con ID '{id_maestro}' encontrado y campos llenados.")
             else:
                 messagebox.showinfo("No Encontrado", "No se encontró un maestro con ese ID")
-
+        
         except Exception as e:
             messagebox.showinfo("Error", str(e))
+        finally:
+            conn.close()
 
     def editar_maestro():
         conn = conectar()
         cursor = conn.cursor()
 
+        # Recibir los datos desde la interfaz
         id_maestro = idEntry.get()  # ID del maestro a editar
         nombre = nameEntry.get()
         a_paterno = midName.get()
@@ -199,51 +209,111 @@ def createTeacherWindow(idUsuario,rol):
             return
 
         try:
-            # Actualizar datos en la tabla Maestros
-            cursor.execute(
-                "UPDATE Maestros SET nombre = ?, a_paterno = ?, a_materno = ?, correo = ?, grado_estudio = ? WHERE id_maestro = ?",
-                (nombre, a_paterno, a_materno, correo, grado, id_maestro))
+            # Obtener las materias que el maestro dejará de dar
+            cursor.execute("""
+                SELECT m.id_materia 
+                FROM Materias m
+                JOIN Maestro_Materias mm ON m.id_materia = mm.id_materia
+                WHERE mm.id_maestro = ? AND m.nombre_materia NOT IN ({})
+            """.format(','.join(['?'] * len(materias_seleccionadas))),
+                [id_maestro] + materias_seleccionadas
+            )
+            materias_eliminadas = cursor.fetchall()
+
+            # Actualizar los datos del maestro
+            cursor.execute("""
+                UPDATE Maestros 
+                SET nombre = ?, a_paterno = ?, a_materno = ?, correo = ?, grado_estudio = ? 
+                WHERE id_maestro = ?
+            """, (nombre, a_paterno, a_materno, correo, grado, id_maestro))
             conn.commit()
 
-            # Actualizar relación en la tabla Maestro_Carreras
+            # Actualizar relación Maestro_Carreras
             cursor.execute("DELETE FROM Maestro_Carreras WHERE id_maestro = ?", (id_maestro,))
             for carrera in carreras_seleccionadas:
                 cursor.execute("SELECT id_carrera FROM Carreras WHERE nombre_carrera = ?", (carrera,))
-                resultado_carrera = cursor.fetchone()
-
-                if resultado_carrera is None:
-                    messagebox.showinfo("Error", f"La carrera '{carrera}' no existe en la base de datos")
-                    continue
-
-                id_carrera = resultado_carrera[0]  # ID de la carrera
-
-                cursor.execute(
-                    "INSERT INTO Maestro_Carreras (id_maestro, id_carrera) VALUES (?, ?)",
-                    (id_maestro, id_carrera))
+                id_carrera = cursor.fetchone()
+                if id_carrera:
+                    cursor.execute("""
+                        INSERT INTO Maestro_Carreras (id_maestro, id_carrera) 
+                        VALUES (?, ?)
+                    """, (id_maestro, id_carrera[0]))
             conn.commit()
 
-            # Actualizar relación en la tabla Maestro_Materias para cada materia seleccionada
+            # Actualizar relación Maestro_Materias
             cursor.execute("DELETE FROM Maestro_Materias WHERE id_maestro = ?", (id_maestro,))
             for materia in materias_seleccionadas:
                 cursor.execute("SELECT id_materia FROM Materias WHERE nombre_materia = ?", (materia,))
-                resultado_materia = cursor.fetchone()
-
-                if resultado_materia is None:
-                    messagebox.showinfo("Error", f"La materia '{materia}' no existe en la base de datos")
-                    continue
-
-                id_materia = resultado_materia[0]  # ID de la materia
-
-                cursor.execute(
-                    "INSERT INTO Maestro_Materias (id_maestro, id_materia) VALUES (?, ?)",
-                    (id_maestro, id_materia))
+                id_materia = cursor.fetchone()
+                if id_materia:
+                    cursor.execute("""
+                        INSERT INTO Maestro_Materias (id_maestro, id_materia) 
+                        VALUES (?, ?)
+                    """, (id_maestro, id_materia[0]))
             conn.commit()
 
+            # Procesar materias eliminadas
+            for materia_eliminada in materias_eliminadas:
+                id_materia = materia_eliminada[0]
+
+                # Buscar los grupos del maestro con la materia eliminada
+                cursor.execute("""
+                    SELECT g.id_grupo 
+                    FROM Grupos g 
+                    WHERE g.id_maestro = ? AND g.id_materia = ?
+                """, (id_maestro, id_materia))
+                grupos = cursor.fetchall()
+
+                for grupo in grupos:
+                    id_grupo = grupo[0]
+
+                    # Buscar un maestro de reemplazo
+                    cursor.execute("""
+                        SELECT m.id_maestro 
+                        FROM Maestros m
+                        JOIN Maestro_Materias mm ON m.id_maestro = mm.id_maestro
+                        WHERE mm.id_materia = ? AND m.id_maestro != ? 
+                        ORDER BY (
+                            SELECT COUNT(*) FROM Grupos g WHERE g.id_maestro = m.id_maestro
+                        ) ASC
+                        LIMIT 1
+                    """, (id_materia, id_maestro))
+                    maestro_reemplazo = cursor.fetchone()
+
+                    if maestro_reemplazo:
+                        # Reasignar el grupo al maestro de reemplazo
+                        cursor.execute("""
+                            UPDATE Grupos 
+                            SET id_maestro = ? 
+                            WHERE id_grupo = ?
+                        """, (maestro_reemplazo[0], id_grupo))
+                    else:
+                        # Si no hay reemplazo, desasignar al grupo
+                        # Desasignar a los alumnos del grupo en la tabla Alumno_Materias
+                        cursor.execute("""
+                            UPDATE Alumno_Materias
+                            SET asignado = 0
+                            WHERE id_alumno IN (
+                                SELECT id_alumno
+                                FROM Grupo_Alumnos
+                                WHERE id_grupo = ?
+                            ) AND id_materia = ?
+                        """, (id_grupo, id_materia))
+
+                        # Eliminar asociaciones entre alumnos y el grupo
+                        cursor.execute("DELETE FROM Grupo_Alumnos WHERE id_grupo = ?", (id_grupo,))
+
+                        # Eliminar el grupo de la tabla Grupos
+                        cursor.execute("DELETE FROM Grupos WHERE id_grupo = ?", (id_grupo,))
+            conn.commit()
+
+            # Notificar éxito
             messagebox.showinfo("Éxito", "Datos del maestro actualizados correctamente")
             limpiar_campos()
 
         except Exception as e:
-            messagebox.showinfo("Error", str(e))
+            conn.rollback()
+            messagebox.showerror("Error", f"Ocurrió un error: {str(e)}")
 
         finally:
             conn.close()
@@ -252,64 +322,115 @@ def createTeacherWindow(idUsuario,rol):
         conn = conectar()
         cursor = conn.cursor()
         id_maestro = idEntry.get()
-
+        
         if not id_maestro:
             messagebox.showinfo("Error", "Por favor, busque un profesor para eliminar")
             return
-
-        confirmacion = messagebox.askyesno("Confirmación",
-                                           "¿Estás seguro de que deseas eliminar este profesor y sus asociaciones?")
+        
+        confirmacion = messagebox.askyesno("Confirmación", 
+            "¿Estás seguro de que deseas eliminar este profesor y sus asociaciones?")
         if not confirmacion:
             return
-
+        
         try:
-            # No es necesario usar conn.begin() en SQLite
-
             # Buscar las materias y carreras asociadas al maestro
             cursor.execute("SELECT id_materia FROM Maestro_Materias WHERE id_maestro = ?", (id_maestro,))
             materias = cursor.fetchall()
-
+            
             cursor.execute("SELECT id_carrera FROM Maestro_Carreras WHERE id_maestro = ?", (id_maestro,))
             carreras = cursor.fetchall()
-
+            
             # Eliminar las relaciones en Maestro_Materias y Maestro_Carreras
             for materia in materias:
-                cursor.execute("DELETE FROM Maestro_Materias WHERE id_maestro = ? AND id_materia = ?",
-                               (id_maestro, materia[0]))
-
+                cursor.execute("DELETE FROM Maestro_Materias WHERE id_maestro = ? AND id_materia = ?", 
+                            (id_maestro, materia[0]))
+            
             for carrera in carreras:
-                cursor.execute("DELETE FROM Maestro_Carreras WHERE id_maestro = ? AND id_carrera = ?",
-                               (id_maestro, carrera[0]))
-
-            # Eliminar las relaciones de los grupos asociados al maestro
-            cursor.execute("SELECT id_grupo FROM Grupos WHERE id_maestro = ?", (id_maestro,))
+                cursor.execute("DELETE FROM Maestro_Carreras WHERE id_maestro = ? AND id_carrera = ?", 
+                            (id_maestro, carrera[0]))
+            
+            # Encontrar los grupos asociados al maestro
+            cursor.execute("""
+                SELECT g.id_grupo, g.id_materia, g.id_carrera, h.turno, h.hora_inicio, h.hora_fin 
+                FROM Grupos g
+                JOIN Horarios h ON g.id_horario = h.id_horario
+                WHERE g.id_maestro = ?
+            """, (id_maestro,))
             grupos = cursor.fetchall()
-
+            
             for grupo in grupos:
                 id_grupo = grupo[0]
-                try:
-                    # Eliminar registros relacionados en cascada
-                    cursor.execute("DELETE FROM Grupo_Alumnos WHERE id_grupo = ?", (id_grupo,))
-                    cursor.execute("DELETE FROM Grupos WHERE id_grupo = ?", (id_grupo,))
-                except Exception as e:
-                    messagebox.showerror("Error", f"Ocurrió un error al eliminar los grupos: {e}")
-                    conn.rollback()  # Revertir la transacción en caso de error
-                    return
-
+                id_materia = grupo[1]
+                id_carrera = grupo[2]
+                
+                # Formatear el horario para la comparación
+                grupo_horario = f"{grupo[3]} {grupo[4]} - {grupo[5]}"
+                
+                # Buscar un maestro de reemplazo
+                cursor.execute("""
+                    SELECT m.id_maestro 
+                    FROM Maestros m
+                    JOIN Maestro_Materias mm ON m.id_maestro = mm.id_maestro
+                    WHERE mm.id_materia = ? 
+                    AND m.id_maestro IN (
+                        SELECT id_maestro FROM Maestro_Carreras WHERE id_carrera = ?
+                    )
+                    AND m.id_maestro != ?
+                    AND (
+                        m.horarios_ocupados IS NULL 
+                        OR m.horarios_ocupados NOT LIKE ?
+                    )
+                    ORDER BY (
+                        SELECT COUNT(*) 
+                        FROM Grupos g 
+                        WHERE g.id_maestro = m.id_maestro
+                    ) ASC
+                    LIMIT 1
+                """, (id_materia, id_carrera, id_maestro, f'%{grupo_horario}%'))
+                
+                maestro_reemplazo = cursor.fetchone()
+                
+                if maestro_reemplazo:
+                    # Actualizar el grupo con el nuevo maestro
+                    cursor.execute("""
+                        UPDATE Grupos 
+                        SET id_maestro = ? 
+                        WHERE id_grupo = ?
+                    """, (maestro_reemplazo[0], id_grupo))
+                else:
+                    # Si no hay maestro de reemplazo, eliminar el grupo
+                    try:
+                        # Actualizar Alumno_Materias: establecer asignado a 0 
+                        cursor.execute("""
+                        UPDATE Alumno_Materias
+                        SET asignado = 0
+                        WHERE id_alumno IN (
+                            SELECT id_alumno
+                            FROM Grupo_Alumnos
+                            WHERE id_grupo = ?
+                        ) AND id_materia = ?
+                        """, (id_grupo, id_materia))
+                        
+                        # Eliminar registros relacionados en cascada
+                        cursor.execute("DELETE FROM Grupo_Alumnos WHERE id_grupo = ?", (id_grupo,))
+                        cursor.execute("DELETE FROM Grupos WHERE id_grupo = ?", (id_grupo,))
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Ocurrió un error al eliminar los grupos: {e}")
+                        conn.rollback()
+                        return
+            
             # Eliminar al maestro
             cursor.execute("DELETE FROM Maestros WHERE id_maestro = ?", (id_maestro,))
-
+            
             # Confirmar la transacción
             conn.commit()
-
             messagebox.showinfo("Éxito", "El profesor y sus registros relacionados fueron eliminados correctamente.")
             limpiar_campos()
-
+        
         except Exception as e:
             # En caso de un error, revertir todos los cambios
             conn.rollback()
             messagebox.showerror("Error", f"Ocurrió un error al eliminar al profesor: {e}")
-
         finally:
             conn.close()
 
@@ -458,36 +579,79 @@ def createTeacherWindow(idUsuario,rol):
     def buscar_maestro(id_usuario):
         conn = conectar()
         cursor = conn.cursor()
-
+        
         try:
-            cursor.execute("SELECT * FROM Maestros WHERE id_usuario = ?", (id_usuario,))
+            # Consultar los detalles del maestro
+            cursor.execute(
+                """
+                SELECT m.id_maestro, m.nombre, m.a_paterno, m.a_materno, m.correo, m.grado_estudio, c.nombre_carrera
+                FROM Maestros m
+                LEFT JOIN Maestro_Carreras mc ON m.id_maestro = mc.id_maestro
+                LEFT JOIN Carreras c ON mc.id_carrera = c.id_carrera
+                WHERE m.id_usuario = ?
+                """,
+                (id_usuario,)
+            )
             maestro = cursor.fetchone()
-
+            
             if maestro:
-                # Validar si algunos valores son nulos
+                # Rellenar los campos con los datos del maestro obtenidos
+                id_maestro = maestro[0]
                 idEntry.delete(0, tk.END)
-                idEntry.insert(tk.END, maestro[0])
-
+                idEntry.insert(tk.END, id_maestro)
                 nameEntry.delete(0, tk.END)
                 nameEntry.insert(tk.END, maestro[1])
-
                 midName.delete(0, tk.END)
                 midName.insert(tk.END, maestro[2])
-
                 lasName.delete(0, tk.END)
                 lasName.insert(tk.END, maestro[3])
-
                 emailEntry.delete(0, tk.END)
                 emailEntry.insert(tk.END, maestro[4])
-
-                carreraListbox.set(maestro[5])  # Combobox para carrera
-                studyGrade.set(maestro[6])  # Grado de estudios
-                messagebox.showinfo("Éxito", "Maestro encontrado")
+                studyGrade.set(maestro[5])
+                
+                # Consultar las materias asociadas al maestro
+                cursor.execute(
+                    """
+                    SELECT ma.nombre_materia
+                    FROM Materias ma
+                    JOIN Maestro_Materias mm ON ma.id_materia = mm.id_materia
+                    WHERE mm.id_maestro = ?
+                    """,
+                    (id_maestro,)
+                )
+                materias_asociadas = [row[0] for row in cursor.fetchall()]
+                
+                # Limpiar la lista de materias y seleccionar las asociadas
+                materiaListbox.selection_clear(0, tk.END)
+                for index in range(materiaListbox.size()):
+                    materia = materiaListbox.get(index)
+                    if materia in materias_asociadas:
+                        materiaListbox.select_set(index)
+                
+                # Consultar las carreras asociadas
+                cursor.execute(
+                    """
+                    SELECT ca.nombre_carrera
+                    FROM Carreras ca
+                    JOIN Maestro_Carreras mm ON ca.id_carrera = mm.id_carrera
+                    WHERE mm.id_maestro = ?
+                    """,
+                    (id_maestro,)
+                )
+                carreras_asociadas = [row[0] for row in cursor.fetchall()]
+                carreraListbox.selection_clear(0, tk.END)
+                for index in range(carreraListbox.size()):
+                    carrera = carreraListbox.get(index)
+                    if carrera in carreras_asociadas:
+                        carreraListbox.select_set(index)
+                
+                messagebox.showinfo("Maestro Encontrado", f"Maestro con ID de usuario '{id_usuario}' encontrado y campos llenados.")
             else:
-                messagebox.showinfo("No Encontrado", "No se encontró un maestro con ese ID")
-
+                messagebox.showinfo("No Encontrado", "No se encontró un maestro con ese ID de usuario")
+        
         except Exception as e:
-            messagebox.showinfo("Error", f"Error al buscar el maestro: {str(e)}")
+            messagebox.showinfo("Error", str(e))
+        
         finally:
             conn.close()
 
@@ -559,9 +723,8 @@ def createTeacherWindow(idUsuario,rol):
         emailEntry.config(state="disabled")
         #carreraListbox.config(state="disabled")
         materiaListbox.config(state="disabled")
-
+        studyGrade.config(state="disabled")
         tk.Button(teacherWindow, text="Guardar Cambios", command=editar_maestro).grid(row=9, column=1)
-        tk.Button(teacherWindow, text="Cancelar", command=limpiar_camposMAestro).grid(row=10, column=1)
         conn = conectar()
         cursor = conn.cursor()
         try:

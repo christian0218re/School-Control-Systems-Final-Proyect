@@ -14,6 +14,8 @@ def createGenerarGruposWindow():
         # Paso 1: Obtener todas las carreras
         cursor.execute("SELECT * FROM Carreras")
         carreras = cursor.fetchall()
+        fecha = '2024-11-27'
+        semestre = '2024-1'
         
         for carrera in carreras:
             print("Entro Carrera")
@@ -46,14 +48,22 @@ def createGenerarGruposWindow():
                     print(f"No hay suficientes alumnos disponibles para la materia {id_materia}")
                     continue
 
-                # Paso 4: Verificar que haya un maestro disponible
+                # Paso 4: Obtener maestros con conteo de grupos asignados
                 cursor.execute("""
-                    SELECT m.id_maestro, m.nombre FROM Maestros m
+                    SELECT m.id_maestro, m.nombre, 
+                    (SELECT COUNT(*) FROM Grupos g 
+                    WHERE g.id_maestro = m.id_maestro 
+                    AND g.id_materia = ? 
+                    AND g.fecha = ?
+                    ) as grupos_asignados
+                    FROM Maestros m
                     JOIN Maestro_Materias mm ON m.id_maestro = mm.id_maestro
-                    WHERE mm.id_materia = ? AND m.id_maestro IN (
+                    WHERE mm.id_materia = ? 
+                    AND m.id_maestro IN (
                         SELECT id_maestro FROM Maestro_Carreras WHERE id_carrera = ?
                     )
-                """, (id_materia, id_carrera))
+                    ORDER BY grupos_asignados ASC
+                """, (id_materia, fecha, id_materia, id_carrera))
                 
                 maestros = cursor.fetchall()
                 if not maestros:
@@ -68,6 +78,14 @@ def createGenerarGruposWindow():
                         
                     print("Evaluando Maestro")
                     id_maestro = maestro[0]
+                    grupos_asignados = maestro[2]  # Número de grupos ya asignados
+                    
+                    # Si ya se han asignado grupos y hay más maestros, pasar al siguiente
+                    if grupos_asignados > 0 and len(maestros) > 1:
+                        print(f"Maestro {id_maestro} ya tiene grupos, intentando con otro")
+                        continue
+                    
+                    print(f"Procesando maestro {id_maestro}")
                     
                     # Paso 5: Verificar horarios disponibles
                     cursor.execute("""
@@ -245,7 +263,7 @@ def createGenerarGruposWindow():
                 """, (id_grupo,))
                 cursor.execute("""
                     UPDATE GrupoCreado
-                    SET Creado = 1
+                    SET Creado = 0
                     WHERE grupo = 1
                 """)
             # Paso 7: Confirmar los cambios

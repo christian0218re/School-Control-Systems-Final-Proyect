@@ -15,12 +15,18 @@ def createPlaneacionHorarioWindow(id_usuario):
         if es_maestro:
             # Si es maestro, mostrar grupos que imparte
             query = """
-            SELECT 
-                g.id_grupo, c.nombre_carrera AS carrera, m.nombre_materia AS materia, 
-                ma.nombre || ' ' || ma.a_paterno || ' ' || ma.a_materno AS maestro,
-                s.numero_salon AS salon, h.hora_inicio, h.hora_fin, h.turno, 
-                g.semestre, g.max_alumnos,
-                COUNT(CASE WHEN ga.activo = 1 THEN 1 END) as alumnos_inscritos
+            SELECT
+            g.id_grupo, 
+            c.nombre_carrera AS carrera, 
+            m.nombre_materia AS materia,
+            ma.nombre || ' ' || ma.a_paterno || ' ' || ma.a_materno AS maestro,
+            s.numero_salon AS salon, 
+            h.hora_inicio, 
+            h.hora_fin, 
+            h.turno,
+            g.semestre, 
+            g.max_alumnos,
+            COUNT(CASE WHEN ga.activo = 1 THEN 1 END) as alumnos_inscritos
             FROM Grupos g
             JOIN Carreras c ON g.id_carrera = c.id_carrera
             JOIN Materias m ON g.id_materia = m.id_materia
@@ -29,6 +35,20 @@ def createPlaneacionHorarioWindow(id_usuario):
             JOIN Horarios h ON g.id_horario = h.id_horario
             LEFT JOIN Grupo_Alumnos ga ON g.id_grupo = ga.id_grupo
             WHERE ma.id_usuario = ?
+            GROUP BY 
+                g.id_grupo, 
+                c.nombre_carrera, 
+                m.nombre_materia, 
+                ma.nombre, 
+                ma.a_paterno, 
+                ma.a_materno,
+                s.numero_salon, 
+                h.hora_inicio, 
+                h.hora_fin, 
+                h.turno,
+                g.semestre, 
+                g.max_alumnos
+            ORDER BY h.hora_inicio ASC, h.turno ASC
             """
             params = [id_usuario]
         else:

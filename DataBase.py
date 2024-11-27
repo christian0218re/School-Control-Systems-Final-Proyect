@@ -208,32 +208,32 @@ materias = [
     ("Inteligencia Artificial", "IA505", 10, "7°")
 ]
 maestros = [
-    ("Juan", "Pérez", "García", "juan.perez@example.com", "Doctorado"),
-    ("Ana", "López", "Martínez", "ana.lopez@example.com", "Maestria"),
-    ("Luis", "Hernández", "Sánchez", "luis.hernandez@example.com", "Licenciatura"),
-    ("María", "González", "Ramírez", "maria.gonzalez@example.com", "Doctorado"),
-    ("Carlos", "Ramírez", "Torres", "carlos.ramirez@example.com", "Maestria")
+    ("Juan", "Pérez", "García", "maestro1", "Doctorado"),
+    ("Ana", "López", "Martínez", "maestro2", "Maestria"),
+    ("Luis", "Hernández", "Sánchez", "maestro3", "Licenciatura"),
+    ("María", "González", "Ramírez", "maestro4", "Doctorado"),
+    ("Carlos", "Ramírez", "Torres", "maestro5", "Maestria")
 ]
 alumnos = [
-    ("Roberto", "Martínez", "López", "1995-06-15", "computacion1@example.com"),
-    ("Laura", "Fernández", "García", "1996-08-20", "computacion2@example.com"),
-    ("Pedro", "Sánchez", "Torres", "1994-02-10", "computacion3@example.com"),
-    ("Mónica", "Castro", "Hernández", "1997-12-25", "computacion4@example.com"),
-    ("José", "Rodríguez", "Pérez", "1998-05-18", "computacion5@example.com")
+    ("Roberto", "Martínez", "López", "1995-06-15", "alumno1"),
+    ("Laura", "Fernández", "García", "1996-08-20", "alumno2"),
+    ("Pedro", "Sánchez", "Torres", "1994-02-10", "alumno3"),
+    ("Mónica", "Castro", "Hernández", "1997-12-25", "alumno4"),
+    ("José", "Rodríguez", "Pérez", "1998-05-18", "alumno5")
 ]
 usuarios = [
     # Tipo usuario: administrador, maestro, alumno
     ("admin", "admin", "admin", "admin", "administrador", "", ""),
-    ("Juan Pérez", "juan.perez@example.com", "juan", "1234", "maestro", "Pérez", "Juan"),
-    ("Ana López", "ana.lopez@example.com", "ana", "1234", "maestro", "López", "Ana"),
-    ("Luis Hernández", "luis.hernandez@example.com", "luis", "1234", "maestro", "Hernández", "Luis"),
-    ("María González", "maria.gonzalez@example.com", "maria", "1234", "maestro", "González", "María"),
-    ("Carlos Ramírez", "carlos.ramirez@example.com", "carlos", "1234", "maestro", "Ramírez", "Carlos"),
-    ("Roberto Martínez", "computacion1@example.com", "roberto", "1234", "alumno", "Martínez", "Roberto"),
-    ("Laura Fernández", "computacion2@example.com", "laura", "1234", "alumno", "Fernández", "Laura"),
-    ("Pedro Sánchez", "computacion3@example.com", "pedro", "1234", "alumno", "Sánchez", "Pedro"),
-    ("Mónica Castro", "computacion4@example.com", "monica", "1234", "alumno", "Castro", "Mónica"),
-    ("José Rodríguez", "computacion5@example.com", "jose", "1234", "alumno", "Rodríguez", "José")
+    ("Juan Pérez", "maestro1", "juan", "1234", "maestro", "Pérez", "Juan"),
+    ("Ana López", "maestro2", "ana", "1234", "maestro", "López", "Ana"),
+    ("Luis Hernández", "maestro3", "luis", "1234", "maestro", "Hernández", "Luis"),
+    ("María González", "maestro4", "maria", "1234", "maestro", "González", "María"),
+    ("Carlos Ramírez", "maestro5", "carlos", "1234", "maestro", "Ramírez", "Carlos"),
+    ("Roberto Martínez", "alumno1", "roberto", "1234", "alumno", "Martínez", "Roberto"),
+    ("Laura Fernández", "alumno2", "laura", "1234", "alumno", "Fernández", "Laura"),
+    ("Pedro Sánchez", "alumno3", "pedro", "1234", "alumno", "Sánchez", "Pedro"),
+    ("Mónica Castro", "alumno4", "monica", "1234", "alumno", "Castro", "Mónica"),
+    ("José Rodríguez", "alumno5", "jose", "1234", "alumno", "Rodríguez", "José")
 ]
 
 # Relación de materias con carrera

@@ -485,7 +485,8 @@ def createStudentWindow(idUsuario, rol):
         birthEntry.config(state="disabled")
         editarButton = tk.Button(studentWindow, text="Guardar Cambios", command=editar_estudiante)
         editarButton.grid(row=10, column=1, padx=10, pady=10)
-        limpiarButton = tk.Button(studentWindow, text="Cancelar", command=limpiar_camposAlumno)
+        careerEntry.config(state="disabled")
+
         limpiarButton.grid(row=11, column=0, padx=10, pady=10)
         conn = conectar()
         cursor = conn.cursor()

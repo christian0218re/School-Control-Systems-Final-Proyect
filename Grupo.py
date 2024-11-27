@@ -130,25 +130,7 @@ def createGrupoWindow():
         if not valido:
             messagebox.showinfo("Error", mensaje) 
             return  
-
-        try:
-            max_alumnos = int(max_alumnos)
-            if max_alumnos < 10:
-                messagebox.showinfo("Error", "El número máximo de alumnos debe ser al menos 10")
-                return
-        except ValueError:
-            messagebox.showinfo("Error", "El campo 'Máximo de Alumnos' debe ser un número válido")
-            return
-
-        try:
-            semestre = int(semestre)
-            if semestre < 1 or semestre > 10:  
-                messagebox.showinfo("Error", "El semestre debe estar entre 1 y 10")
-                return
-        except ValueError:
-            messagebox.showinfo("Error", "El campo 'Semestre' debe ser un número válido")
-            return
-
+            
         try:
             cursor.execute("""
                 INSERT INTO Grupos (id_grupo, fecha, id_carrera, id_maestro, id_materia, id_salon, id_horario, semestre, max_alumnos)
@@ -214,23 +196,6 @@ def createGrupoWindow():
         if not valido:
             messagebox.showinfo("Error", mensaje)  
             return  
-
-        try:
-            max_alumnos = int(max_alumnos)
-            if max_alumnos < 10:
-                messagebox.showinfo("Error", "El número máximo de alumnos debe ser al menos 10")
-                return
-        except ValueError:
-            messagebox.showinfo("Error", "El campo 'Máximo de Alumnos' debe ser un número válido")
-            return
-        try:
-            semestre = int(semestre)
-            if semestre < 1 or semestre > 10:  # Validar que esté entre 1 y 10
-                messagebox.showinfo("Error", "El semestre debe estar entre 1 y 10")
-                return
-        except ValueError:
-            messagebox.showinfo("Error", "El campo 'Semestre' debe ser un número válido")
-            return
 
         try:
             cursor.execute("""

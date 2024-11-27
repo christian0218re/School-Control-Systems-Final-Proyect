@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+from datetime import datetime
 from DataBase import conectar
 import re
 
@@ -31,70 +32,157 @@ def createUserWindow():
     def agregar_usuario():
         conn = conectar()
         cursor = conn.cursor()
-
-        id_usuario = idEntry.get()
-        nombre = nameEntry.get()
-        a_paterno = midNameEntry.get()
-        a_materno = lasNameEntry.get()
-        correo = emailEntry.get()
-        nombre_usuario = usernameEntry.get()
-        contrasena = passwordEntry.get()
-        tipo_usuario = profileEntry.get()
-
-        # Validación de campos vacíos
-        if not (
-                id_usuario and nombre and a_paterno and a_materno and correo and nombre_usuario and contrasena and tipo_usuario):
-            messagebox.showinfo("Error", "Por favor, rellene todos los campos")
-            return
-
-        # Validación de formato de correo electrónico
-        email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-        if not re.match(email_regex, correo):
-            messagebox.showinfo("Error", "El correo electrónico no tiene un formato válido")
-            return
-
-        # Validación de nombre de usuario único
-        cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nombre_usuario = ?", (nombre_usuario,))
-        if cursor.fetchone()[0] > 0:
-            messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
-            return
-
-        """# Validación de la contraseña
-        password_regex = r'^(?=.*[A-Z])(?=.*[!@#$%^&*()_+{}:"<>?]).{6,}$'
-        if not re.match(password_regex, contrasena):
-            messagebox.showinfo("Error",
-                                "La contraseña debe tener al menos 6 caracteres, una letra mayúscula y un carácter especial")
-            return"""
-
+        
         try:
-            # Insertar usuario si las validaciones son correctas
+            # Obtener valores de los campos de entrada
+            id_usuario = idEntry.get()
+            nombre = nameEntry.get()
+            a_paterno = midNameEntry.get()
+            a_materno = lasNameEntry.get()
+            correo = emailEntry.get()
+            nombre_usuario = usernameEntry.get()
+            contrasena = passwordEntry.get()
+            tipo_usuario = profileEntry.get().lower()  # Convertir a minúsculas
+            
+            # Validación de campos vacíos
+            if not (id_usuario and nombre and a_paterno and a_materno and 
+                    correo and nombre_usuario and contrasena and tipo_usuario):
+                messagebox.showinfo("Error", "Por favor, rellene todos los campos")
+                conn.close()
+                return
+            
+            # Validación de formato de correo electrónico
+            email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+            if not re.match(email_regex, correo):
+                messagebox.showinfo("Error", "El correo electrónico no tiene un formato válido")
+                conn.close()
+                return
+            
+            # Validación de nombre de usuario único
+            cursor.execute("SELECT COUNT(*) FROM Usuarios WHERE nombre_usuario = ?", (nombre_usuario,))
+            if cursor.fetchone()[0] > 0:
+                messagebox.showinfo("Error", "El nombre de usuario ya está en uso. Elija otro nombre de usuario.")
+                conn.close()
+                return
+            
+            # Insertar usuario en la tabla Usuarios
             cursor.execute(
-                "INSERT INTO Usuarios (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contrasena, tipo_usuario))
-
+                "INSERT INTO Usuarios (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contraseña, tipo_usuario) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (id_usuario, nombre, a_paterno, a_materno, correo, nombre_usuario, contrasena, tipo_usuario)
+            )
+            
+            # Inserción adicional según el tipo de usuario
             if tipo_usuario == "maestro":
-                siguiente_id_maestro = obtener_siguiente_idd("Maestros")
-                cursor.execute(
-                    "INSERT INTO Maestros (id_maestro, nombre, a_paterno, a_materno, correo, id_usuario) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (siguiente_id_maestro, nombre, a_paterno, a_materno, correo, id_usuario)
-                )
+                # Crear una nueva ventana para información adicional de maestros
+                maestro_window = tk.Toplevel()
+                maestro_window.title("Información Adicional de Maestro")
+                maestro_window.geometry("300x200")
+                
+                # Etiqueta y entrada para grado de estudio
+                tk.Label(maestro_window, text="Grado de Estudio:").pack()
+                grado_estudio_var = tk.StringVar()
+                grado_estudio_combo = ttk.Combobox(maestro_window, 
+                    textvariable=grado_estudio_var, 
+                    values=["Licenciatura", "Maestria", "Doctorado"])
+                grado_estudio_combo.pack()
+                
+                def guardar_maestro():
+                    grado_estudio = grado_estudio_var.get()
+                    
+                    # Validar que el grado de estudio sea válido
+                    if not grado_estudio:
+                        messagebox.showinfo("Error", "Seleccione un grado de estudio")
+                        return
+                    
+                    try:
+                        idMaestro=obtener_siguiente_idd("Maestros")
+                        # Insertar en la tabla Maestros
+                        cursor.execute(
+                            "INSERT INTO Maestros (id_maestro,nombre, a_paterno, a_materno, correo, grado_estudio, id_usuario) "
+                            "VALUES (?,?, ?, ?, ?, ?, ?)",
+                            (idMaestro,nombre, a_paterno, a_materno, correo, grado_estudio, id_usuario)
+                        )
+                        conn.commit()
+                        
+                        # Imprimir la información del usuario recién creado
+                        print(f"ID de Usuario creado: {id_usuario}")
+                        
+                        # Buscar y imprimir los detalles del maestro
+                        cursor.execute("SELECT * FROM Maestros WHERE id_usuario = ?", (id_usuario,))
+                        maestro = cursor.fetchone()
+                        print("Detalles del Maestro:")
+                        print(f"ID de Usuario: {maestro[5]}")
+                        print(f"Nombre: {maestro[0]} {maestro[1]} {maestro[2]}")
+                        print(f"Correo: {maestro[3]}")
+                        print(f"Grado de Estudio: {maestro[4]}")
+                        print(idMaestro)
+                        messagebox.showinfo("Éxito", "Maestro registrado correctamente")
+                        maestro_window.destroy()
+                        limpiar_campos()
+                    except Exception as e:
+                        conn.rollback()
+                        messagebox.showinfo("Error", str(e))
+                    finally:
+                        conn.close()
+                
+                tk.Button(maestro_window, text="Guardar", command=guardar_maestro).pack()
+            
             elif tipo_usuario == "alumno":
-                siguiente_id_alumno = obtener_siguiente_idd("Alumnos")
-                print("Alumno id = ",siguiente_id_alumno)
-                cursor.execute(
-                    "INSERT INTO Alumnos (id_alumno, nombre, a_paterno, a_materno, correo, id_usuario) "
-                    "VALUES (?, ?, ?, ?, ?, ?)",
-                    (siguiente_id_alumno, nombre, a_paterno, a_materno, correo, id_usuario)
-                )
-            conn.commit()
-            messagebox.showinfo("Éxito", "Usuario registrado correctamente")
-            limpiar_campos()
+                # Crear una nueva ventana para información adicional de alumnos
+                alumno_window = tk.Toplevel()
+                alumno_window.title("Información Adicional de Alumno")
+                alumno_window.geometry("300x350")  # Aumenté un poco el tamaño
 
+                # Etiquetas y entradas para información adicional
+                tk.Label(alumno_window, text="Carrera:").pack()
+                
+                # Crear un Combobox en lugar de un Entry para seleccionar carrera
+                carrera_var = tk.StringVar()
+                carrera_combobox = ttk.Combobox(alumno_window, textvariable=carrera_var, state="readonly")
+                
+                try:
+                    cursor.execute("SELECT nombre_carrera FROM Carreras")
+                    carreras = [row[0] for row in cursor.fetchall()]
+                    carrera_combobox['values'] = carreras
+                except Exception as e:
+                    messagebox.showinfo("Error al cargar carreras", str(e))
+                
+                carrera_combobox.pack()
+
+                def guardar_alumno():
+                    carrera = carrera_var.get()  # Obtener la carrera seleccionada del Combobox
+                    
+                    try:
+                        # Insertar en la tabla Alumnos
+                        cursor.execute(
+                            "INSERT INTO Alumnos (nombre, a_paterno, a_materno, carrera, correo, id_usuario) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (nombre, a_paterno, a_materno, carrera, correo, id_usuario)
+                        )
+                        conn.commit()
+                        messagebox.showinfo("Éxito", "Alumno registrado correctamente")
+                        alumno_window.destroy()
+                        limpiar_campos()
+                    except Exception as e:
+                        conn.rollback()
+                        messagebox.showinfo("Error", str(e))
+                    finally:
+                        conn.close()
+
+                tk.Button(alumno_window, text="Guardar", command=guardar_alumno).pack()
+                
+            
+            else:  # administrador
+                conn.commit()
+                messagebox.showinfo("Éxito", "Usuario registrado correctamente")
+                limpiar_campos()
+                conn.close()
+        
         except Exception as e:
+            # Revertir cualquier cambio en caso de error
+            conn.rollback()
             messagebox.showinfo("Error", str(e))
-        finally:
             conn.close()
 
     def buscar_usuario():
